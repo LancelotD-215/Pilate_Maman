@@ -1,0 +1,335 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    
+    <div class="card shadow-sm mb-4 border-secondary">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <h1 class="display-5 fw-bold text-brand mb-0">{{ client['prenom'] }} {{ client['nom'] }}</h1>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill btn-modif-client" id="editClientBtn" title="Modifier les informations">
+                            <i class="fas fa-pen-to-square"></i>
+                        </button>
+                    </div>
+                    <p class="text-muted mb-1"><i class="far fa-calendar"></i> Inscrit(e) le : {{ client['date_inscription'] }}</p>
+                    <p class="text-muted mb-1"><i class="fas fa-at"></i> Email : {{ client['email'] or 'Non renseigné' }}</p>
+                    <p class="text-muted mb-0"><i class="fas fa-phone"></i> Tél : {{ client['telephone'] or 'Non renseigné' }}</p>
+                </div>
+                <div class="col-md-5 text-center border-start">
+                    <h6 class="text-uppercase text-muted ls-1">Solde Actuel</h6>
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                        <div class="display-3 fw-bold {{ 'text-success' if client['seances_restantes'] > 0 else 'text-danger' }}">
+                            {{ client['seances_restantes'] }}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill btn-ajout-rapide-fiche"
+                            data-id="{{ client['id'] }}"
+                            data-prenom="{{ client['prenom'] }}"
+                            data-nom="{{ client['nom'] }}">
+                                <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <span class="badge bg-light text-dark border">Total utilisé : {{ client['total_seances_faites'] }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-slot-5 text-white">
+                    {% if habitudes %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Séances Habituelles</h5>
+                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editHabitudesBtn">
+                                <i class="fas fa-pen-to-square"></i>
+                            </button>
+                        </div>
+                    {% else %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Séances Habituelles</h5>
+                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editHabitudesBtn">
+                                <i class="fas fa-pen-to-square"></i>
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if habitudes %}
+                        <ul class="list-group list-group-flush">
+                            {% for hab in habitudes %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <strong>{{ jours[hab['jour_semaine']] }}</strong>
+                                <span>{{ hab['heure_debut'] }}</span>
+                                <span class="badge bg-secondary">{{ hab['type_seance'] }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted text-center py-3">Aucune inscription a une séance.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Historique D'activité</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for event in historique %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <small class="text-muted">{{ event['date_heure'] | format_datetime }}</small>
+                        
+                        {% if event['action'] == 'CHECK-IN' %}
+                            <span class="text-dark">Séance effectuée</span>
+                            <span class="badge bg-light text-dark border">{{ event['nombre'] }}</span>
+                        {% elif event['action'] == 'ADD_SEANCES' %}
+                            <span class="text-success fw-bold">Ajout de séances</span>
+                            <span class="badge bg-success">+{{ event['nombre'] }}</span>
+                        {% elif event['action'] == 'NEW_ACCOUNT' %}
+                            <span class="text-primary fw-bold">Création du compte</span>
+                            <span class="badge bg-success">+{{ event['nombre'] }}</span>
+                        {% elif event['action'] == 'PRESENCE_VALIDEE' %}
+                            <span class="text-warning">Présence validée</span>
+                            <span class="badge bg-light text-dark border">{{ event['nombre'] }}</span>
+                        {% else %}
+                            <span>{{ event['action'] }}</span>
+                            <span class="badge bg-secondary">{{ event['nombre'] }}</span>
+                        {% endif %}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted">Aucune activité récente.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="text-center mt-3">
+        <a href="/" class="btn btn-outline-secondary">← Retour à l'accueil</a>
+    </div>
+
+    <div class="text-center mt-5 pt-4 border-top">
+        <button type="button" class="btn btn-danger" id="deleteClientBtn">
+            <i class="fas fa-trash"></i> Supprimer le client
+        </button>
+    </div>
+
+</div>
+
+<!-- Modal pour ajout de séances -->
+<div class="modal fade" id="modalAjoutSeanceFiche" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form action="/ajout_seances_rapide" method="POST">
+          
+        <div class="modal-header bg-light">
+          <h5 class="modal-title">Ajouter des séances</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="mb-4 text-center">
+                    <p class="text-center">Ajout de séances pour :</p>
+                    <h3 id="modalClientNomFiche" class="text-primary fw-bold mb-0"></h3>
+            </div>
+          
+          <input type="hidden" name="client_id" id="inputClientIdFiche">
+          <input type="hidden" name="origine" value="fiche_client">
+
+          <hr>
+
+          <div class="mb-3">
+            <label class="form-label">Nombre de séances à ajouter</label>
+            <input type="number" class="form-control form-control-lg text-center" name="seances_ajoutees" value="5" min="1" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Valider</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalmodif-inscriptions" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form action="/modif_inscriptions" method="POST">
+          
+        <div class="modal-header bg-light">
+          <h5 class="modal-title">Modifier les inscriptions</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        
+        <div class="modal-body">         
+            <input type="hidden" name="client_id" value="{{ client['id'] }}">
+            
+            <p class="small text-muted">Cochez les séances auxquelles le client participe chaque semaine :</p>
+
+            <div class="list-group">
+                {% for creneau in creneaux %}
+                <label class="list-group-item d-flex gap-3">
+                    <input class="form-check-input flex-shrink-0" type="checkbox" name="creneaux" value="{{ creneau['id'] }}"
+                        {% for h in habitudes %}{% if h['id'] == creneau['id'] %}checked{% endif %}{% endfor %}>
+                    <span>
+                        <strong>{{ jours[creneau['jour_semaine']] }}</strong> - {{ creneau['heure_debut'] }}
+                        <small class="d-block text-muted">{{ creneau['type_seance'] }}</small>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Valider</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal pour la modification des informations du client -->
+<div class="modal fade" id="modalModifClient" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form action="/modif_client" method="POST">
+
+        <div class="modal-header bg-light">
+          <h5 class="modal-title">Modifier les informations</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+            <input type="hidden" name="client_id" value="{{ client['id'] }}">
+
+            <div class="mb-3">
+                <label class="form-label">Prénom</label>
+                <input type="text" class="form-control" name="prenom" value="{{ client['prenom'] }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Nom</label>
+                <input type="text" class="form-control" name="nom" value="{{ client['nom'] }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" name="email" value="{{ client['email'] or '' }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Téléphone</label>
+                <input type="tel" class="form-control" name="telephone" value="{{ client['telephone'] or '' }}">
+            </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmation de suppression du client -->
+<div class="modal fade" id="modalSupprimerClient" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger">
+      <form action="/supprimer_client" method="POST">
+
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"> Supprimer le client</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+            <input type="hidden" name="client_id" value="{{ client['id'] }}">
+
+            <p class="fs-5 mb-2">Voulez-vous vraiment supprimer 
+                <strong>{{ client['prenom'] }} {{ client['nom'] }}</strong> ?</p>
+
+            <p class="text-danger fw-bold">
+                Cette action est irréversible. Toutes ses données seront définitivement supprimées.
+            </p>
+
+            <div class="form-check mt-4">
+                <input class="form-check-input" type="checkbox" id="confirmDeleteCheck">
+                <label class="form-check-label" for="confirmDeleteCheck">
+                    J'ai bien pris connaissance que cette action est irréversible.
+                </label>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+              Oui, supprimer définitivement
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Script pour gérer le bouton d'ajout de séances dans la fiche client
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // Gestion du clic sur le bouton ajout de séances
+        $(document).on('click', '.btn-ajout-rapide-fiche', function () {
+            
+            // 1. On récupère les infos
+            var id = $(this).data('id');
+            var prenom = $(this).data('prenom');
+            var nom = $(this).data('nom');
+
+            // 2. On remplit la modale
+            $('#inputClientIdFiche').val(id);
+            $('#modalClientNomFiche').text(prenom + ' ' + nom);
+
+            // 3. On affiche la modale Bootstrap
+            var myModal = new bootstrap.Modal(document.getElementById('modalAjoutSeanceFiche'));
+            myModal.show();
+        });
+
+        $(document).on('click', '#editHabitudesBtn', function () {
+            var myModal = new bootstrap.Modal(document.getElementById('modalmodif-inscriptions'));
+            myModal.show();
+        });
+
+        // Gestion du clic sur le bouton de modification des informations du client
+        $(document).on('click', '#editClientBtn', function () {
+            var myModal = new bootstrap.Modal(document.getElementById('modalModifClient'));
+            myModal.show();
+        });
+
+        // Gestion du clic sur le bouton de suppression du client
+        $(document).on('click', '#deleteClientBtn', function () {
+            // On réinitialise la case et on désactive le bouton à chaque ouverture
+            $('#confirmDeleteCheck').prop('checked', false);
+            $('#confirmDeleteBtn').prop('disabled', true);
+            var myModal = new bootstrap.Modal(document.getElementById('modalSupprimerClient'));
+            myModal.show();
+        });
+
+        // Le bouton de confirmation n'est actif que si la case est cochée
+        $(document).on('change', '#confirmDeleteCheck', function () {
+            $('#confirmDeleteBtn').prop('disabled', !this.checked);
+        });
+    });
+</script>
+
+{% endblock %}

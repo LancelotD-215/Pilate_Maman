@@ -1,0 +1,60 @@
+/* ============================================================
+   PALETTE — Personnalisation de l'apparence
+   ------------------------------------------------------------
+   Modifier les valeurs ci-dessous pour rebrander toute l'appli.
+   Les classes utilitaires plus bas (btn-brand, text-brand,
+   bg-app, bg-slot-N…) sont utilisées dans les templates.
+   ============================================================ */
+:root {
+    /* Couleur d'accent principale (boutons "Check-in", titres, liens brandés). */
+    --brand: #0d6efd;         /* Bleu Bootstrap par défaut — à remplacer par la couleur du studio. */
+    --brand-hover: #0a58ca;
+
+    /* Fonds neutres */
+    --bg-app: #f7f7f7;        /* Fond de la barre de navigation */
+    --bg-body-app: #fcfcfc;   /* Fond général de la page */
+    --bg-dark-app: #322c31;   /* Variante sombre (peu utilisée) */
+
+    /* Couleurs de créneaux du planning (5 slots réutilisables).
+       Ajouter/retirer selon le nombre de types de cours. */
+    --slot-1: #5aa9e6;        /* Bleu */
+    --slot-2: #6ab04c;        /* Vert */
+    --slot-3: #8960bd;        /* Violet */
+    --slot-4: #c2711f;        /* Orange */
+    --slot-5: #268385;        /* Bleu canard */
+}
+
+body {
+    background-color: var(--bg-app);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: var(--bg-dark-app);
+}
+
+/* --- Boutons "brandés" (remplacent btn-primary quand on veut la couleur d'accent) --- */
+.btn-brand {
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+    color: #fff !important;
+}
+.btn-brand:hover {
+    background-color: var(--brand-hover) !important;
+    border-color: var(--brand-hover) !important;
+    color: #fff !important;
+}
+
+.btn-outline-brand {
+    color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+.btn-outline-brand:hover {
+    color: #fff !important;
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+
+.text-brand { color: var(--brand) !important; }
+
+/* --- Fonds réutilisables (utilisés dans layout.html) --- */
+.bg-app         { background-color: var(--bg-app) !important; }
+.bg-body-app    { background-color: var(--bg-body-app) !important; }
+.bg-dark-app    { background-color: var(--bg-dark-app) !important; }
