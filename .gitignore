@@ -23,6 +23,7 @@ ENV/
 .env
 .env.*
 *.key
+!.env.example
 
 # --- Données personnelles (RGPD) ---
 # Exports et listes clients : ne pas versionner
