@@ -13,9 +13,14 @@ from datetime import datetime, timedelta
 import locale
 import os
 
-# On récupère le chemin du dossier où se trouve ce fichier
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-# On crée le chemin complet vers la base de données
+# On récupère le chemin de la RACINE du projet (dossier parent de app/)
+# __file__ = ce fichier (app/app_lib.py)
+# dirname(__file__) = son dossier (app/)
+# '..' = on remonte d'un cran pour arriver à la racine
+# abspath = simplifie le tout en chemin absolu propre
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+# On crée le chemin complet vers la base de données (à la racine du projet)
 DB_PATH = os.path.join(BASE_DIR, "database_clients.db")
 
 # création des fonctions utilitaires

@@ -22,6 +22,8 @@ ENV/
 # --- Variables d'environnement & secrets ---
 .env
 .env.*
+# Exception : ce fichier-modèle DOIT être versionné (aucun secret dedans)
+!.env.example
 *.key
 
 # --- Données personnelles (RGPD) ---

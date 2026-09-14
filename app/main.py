@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 author: @lancelot
-name : app.py
+name : app/main.py
 description : code principal de l'application Flask pour la gestion des clients de Pilates
+              (Flask app + toutes les routes, dans un seul fichier).
+              Lancement via run.py à la racine du projet.
 date : 2026/01/20
 """
 
@@ -11,30 +13,38 @@ import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, make_response, session
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash
-from app_lib import client_not_comming, get_db_connection, get_best_clients, get_client_most_remaining, get_number_seances, get_negative_seances_clients, get_zero_clients
+from app.app_lib import client_not_comming, get_db_connection, get_best_clients, get_client_most_remaining, get_number_seances, get_negative_seances_clients, get_zero_clients
+from dotenv import load_dotenv
 import pytz
 import os
 
-# ============================================================
-# CONFIGURATION — À personnaliser lors de l'installation
-# ============================================================
-# Nom du site affiché en haut de chaque page, sur la page de connexion et dans les titres d'onglet.
-SITE_NAME = "Gestion Pilates"
+# Charge les variables du fichier .env vers les variables d'environnement,
+# pour que os.environ.get(...) ci-dessous puisse les lire.
+load_dotenv()
 
-# Identifiants admin (accès à l'espace de gestion). Par défaut : admin / admin.
-# Pour changer le mot de passe : lancer `python set_admin_password.py` et coller la ligne obtenue ci-dessous.
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD_HASH = "pbkdf2:sha256:1000000$McARZjy7XLn2JyYN$95aac02eec611fa988662ea40b176c752cc48218c639b9de79efc34089c129bd"  # -> "admin" (À REMPLACER)
+# ============================================================
+# CONFIGURATION — lue depuis le fichier .env
+# (voir .env.example pour le modèle des variables à définir)
+# ============================================================
+# Nom du site affiché en haut de chaque page (fallback si .env absent)
+SITE_NAME = os.environ.get('SITE_NAME', 'Gestion Pilates')
 
-# Clé secrète Flask (signature des cookies de session). En production, mettre une longue chaîne aléatoire.
-# Générer avec :  python -c "import secrets; print(secrets.token_hex(32))"
-SECRET_KEY = "dev-secret-CHANGEZ-MOI-EN-PRODUCTION"
+# Identifiants admin (accès à l'espace de gestion)
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD_HASH = os.environ['ADMIN_PASSWORD_HASH']  # obligatoire : plante si absent
+
+# Clé secrète Flask (signature des cookies de session) - obligatoire
+SECRET_KEY = os.environ['SECRET_KEY']
+
+# On est en prod si FLASK_ENV=production dans le .env, sinon en dev (par défaut)
+IS_PROD = os.environ.get('FLASK_ENV') == 'production'
 # ============================================================
 
 
 # création de l'application Flask
 app = Flask(__name__) # création du site web
 app.config['SECRET_KEY'] = SECRET_KEY
+app.config['DEBUG'] = not IS_PROD  # debug ON en dev, OFF en prod
 
 # durée de vie de la session si "Rester connecté" est coché
 app.permanent_session_lifetime = timedelta(days=30)
@@ -976,7 +986,6 @@ def borne_succes():
 
 
 
-# lancement de l'application Flask
-if __name__ == '__main__':
-    is_local = 'PYTHONANYWHERE_DOMAIN' not in os.environ
-    app.run(debug=is_local)
+# Note : le lancement du serveur se fait via run.py à la racine du projet
+# (pas via ce fichier, qui n'est plus exécutable directement).
+
