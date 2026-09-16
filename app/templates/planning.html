@@ -1,6 +1,9 @@
 <!-- htmlhint-disable -->
 {% extends 'layout.html' %}
 
+{% block page_title %}Planning{% endblock %}
+{% block page_name %}Planning{% endblock %}
+
 {% block content %}
 <style>
     /* Conteneur principal de la grille */
@@ -148,10 +151,14 @@
                         style="{{ creneau.style }}"
                         data-bs-toggle="modal"
                         data-bs-target="#seanceModal"
+                        data-creneau-id="{{ creneau.data['id'] }}"
                         data-type="{{ creneau.data['type_seance'] }}"
                         data-heure="{{ creneau.data['heure_debut'] }}"
                         data-duree="{{ creneau.data['duree'] }}"
-                        data-date="{{ creneau.date_reelle }}" data-clients='{{ creneau.clients | tojson }}'>
+                        data-date="{{ creneau.date_reelle }}"
+                        data-is-past="{{ 'true' if creneau.is_past else 'false' }}"
+                        data-clients='{{ creneau.clients | tojson }}'
+                        data-surprises='{{ creneau.surprises | tojson }}'>
 
                         <div class="fw-bold">{{ creneau.data['heure_debut'] }}</div>
                         <div class="text-truncate" style="font-weight: 500;">{{ creneau.data['type_seance'] }}</div>
@@ -163,170 +170,446 @@
     </div>
 </div>
 
+<style>
+  /* Modale planning : styles des groupes de clients */
+  .modal-clients-group { margin-bottom: 16px; }
+  .modal-clients-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .modal-clients-group.group-prevus .modal-clients-group-title { color: var(--brand-dark); }
+  .modal-clients-group.group-surprises .modal-clients-group-title { color: var(--warning); }
+  .modal-clients-group-title .badge-count {
+    background: var(--surface-alt);
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10.5px;
+  }
+
+  .client-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 6px;
+  }
+  .client-row.prevu {
+    background: var(--brand-tint);
+    border-color: var(--brand-tint-strong);
+    padding: 14px 16px;
+  }
+  .client-row.prevu .client-name { font-size: 16px; font-weight: 700; }
+  .client-row.surprise {
+    background: var(--warning-tint);
+    border-color: rgba(198, 154, 75, 0.30);
+  }
+  .client-row.no-show {
+    background: var(--alert-tint);
+    border-color: rgba(196, 104, 80, 0.25);
+  }
+  .client-row .client-name { font-weight: 600; color: var(--text); font-size: 14px; }
+  .client-row .client-meta { font-size: 12px; color: var(--text-muted); }
+  .client-row .actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  /* Petite pilule "Prévu" (action secondaire) */
+  .btn-prevu-pill {
+    background: var(--surface);
+    border: 1px solid var(--brand-tint-strong);
+    color: var(--brand-dark);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .btn-prevu-pill:hover { background: var(--brand-tint); border-color: var(--brand); }
+  .btn-prevu-pill.active {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+    box-shadow: 0 2px 6px rgba(42, 167, 155, 0.30);
+  }
+
+  /* Gros bouton "Marquer présent" (action principale) */
+  .btn-presence-pill {
+    background: var(--sage);
+    border: 1px solid var(--sage);
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    box-shadow: 0 2px 6px rgba(130, 156, 124, 0.25);
+  }
+  .btn-presence-pill:hover {
+    background: #6c8664;
+    border-color: #6c8664;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(130, 156, 124, 0.35);
+  }
+  .badge-present {
+    background: var(--success-tint);
+    color: var(--success);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .badge-noshow {
+    background: var(--alert-tint);
+    color: var(--alert);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-warning-mini {
+    background: var(--warning);
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 6px;
+  }
+</style>
+
 <div class="modal fade" id="seanceModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title" id="modalTitle">Détails de la séance</h5>
+      <div class="modal-header">
+        <div>
+            <h3 id="modalType" class="text-brand fw-bold mb-1" style="font-size: 20px;">Type</h3>
+            <div style="color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace;">
+                <span id="modalDate">--/--</span> · <span id="modalHeure">00:00</span> · <span id="modalDuree">0</span> min
+            </div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
 
-        <div class="mb-4 text-center">
-            <h3 id="modalType" class="text-brand fw-bold mb-0">Type</h3>
-            <div class="text-muted fs-5">
-                <span id="modalHeure">00:00</span> • <span id="modalDuree">0</span> min
+        <!-- GROUPE 1 : Prévus (en haut, mis en avant) -->
+        <div class="modal-clients-group group-prevus" id="groupPrevus" style="display: none;">
+            <div class="modal-clients-group-title">
+                <i class="fas fa-star" style="color: var(--brand);"></i>
+                Prévus <span class="badge-count" id="countPrevus">0</span>
             </div>
+            <div id="listPrevus"></div>
         </div>
 
-        <hr>
+        <!-- GROUPE 2 : Inscrits habituels -->
+        <div class="modal-clients-group group-inscrits" id="groupInscrits" style="display: none;">
+            <div class="modal-clients-group-title">
+                <i class="fas fa-users"></i>
+                Inscrits <span class="badge-count" id="countInscrits">0</span>
+            </div>
+            <div id="listInscrits"></div>
+        </div>
 
-        <h6 class="fw-bold text-uppercase text-muted small mb-3" id="clientsInscritsTitle">Clients Inscrits</h6>
-        <ul class="list-group list-group-flush" id="modalClientsList">
-            </ul>
+        <!-- GROUPE 3 : Surprises (checkin sans inscription) -->
+        <div class="modal-clients-group group-surprises" id="groupSurprises" style="display: none;">
+            <div class="modal-clients-group-title">
+                <i class="fas fa-exclamation-triangle"></i>
+                Présents non inscrits <span class="badge-count" id="countSurprises">0</span>
+            </div>
+            <div id="listSurprises"></div>
+        </div>
 
-        <div id="noClientsMsg" class="text-center text-muted fst-italic py-2" style="display:none;">
-            Aucun client inscrit sur ce créneau.
+        <div id="noClientsMsg" class="text-center text-muted fst-italic py-3" style="display:none;">
+            Aucun client sur ce créneau.
         </div>
 
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-    // Petit helper : renvoie un libellé discret du solde restant (ex: "3 séances")
+    // ============================================================
+    // État local (mémorise les changements faits depuis le chargement
+    // pour éviter de re-marquer présent le même client 2× de suite
+    // sans recharger la page)
+    // ============================================================
+    var markedPresent = {};   // clé "clientId|date|heure" → true (marqué présent en session)
+    var soldesModifies = {};  // clé "clientId" → nouveau solde après marquage
+    var prevuChanges = {};    // clé "clientId|creneauId|date" → true/false (nouveau state)
+
+    // ============================================================
+    // Helpers
+    // ============================================================
     function formaterSolde(solde) {
-        if (solde === null || solde === undefined || solde === '') {
-            return '';
-        }
+        if (solde === null || solde === undefined || solde === '') return '';
         var pluriel = (Math.abs(solde) > 1) ? 's' : '';
-        return '<span class="text-muted small me-2">' + solde + ' séance' + pluriel + ' restante' + pluriel + '</span>';
+        return solde + ' séance' + pluriel;
     }
 
-    // Fonction appelée quand on clique sur "Marquer présence"
-    function validerPresenceAjax(event, formElement) {
-        // 1. Bloquer le rechargement de la page standard
-        event.preventDefault();
+    function keyPresence(clientId, date, heure) {
+        return clientId + '|' + date + '|' + heure;
+    }
+    function keyPrevu(clientId, creneauId, date) {
+        return clientId + '|' + creneauId + '|' + date;
+    }
 
-        // 2. Récupérer les données du formulaire
-        var formData = new FormData(formElement);
+    // Rend une ligne "client" (utilisé pour les 3 groupes)
+    // Tient compte de l'état local (markedPresent, soldesModifies, prevuChanges)
+    function renderClientRow(client, kind, opts) {
+        // Applique les modifications locales (si présentes)
+        var pKey = keyPresence(client.id, opts.dateReelle, opts.heureReelle);
+        var effectivePresent = client.present || markedPresent[pKey] === true;
+        var effectiveSolde = (soldesModifies[client.id] !== undefined) ? soldesModifies[client.id] : client.solde;
+        var prKey = keyPrevu(client.id, opts.creneauId, opts.dateReelle);
+        var effectivePrevu = (prevuChanges[prKey] !== undefined) ? prevuChanges[prKey] : client.prevu;
 
-        // 3. Envoyer la requête au serveur en arrière-plan (AJAX)
-        fetch('/marquer_presence', {
-            method: 'POST',
-            body: formData
-        }).then(response => {
-            if (response.ok) {
-                // Le serveur a bien traité la demande (optionnel : logguer le succès)
-                console.log("Présence validée en base de données");
-            } else {
+        var row = document.createElement('div');
+        row.className = 'client-row';
+        if (effectivePrevu && !effectivePresent) row.classList.add('prevu');
+        if (kind === 'surprise') row.classList.add('surprise');
+        if (client.no_show) row.classList.add('no-show');
+
+        var pluriel = (Math.abs(effectiveSolde) > 1) ? 's' : '';
+        var infoHtml =
+            '<div>' +
+                '<div class="client-name">' + client.nom +
+                    (client.no_show ? ' <span class="badge-noshow">no-show</span>' : '') +
+                '</div>' +
+                '<div class="client-meta">' + effectiveSolde + ' séance' + pluriel + ' restante' + pluriel + '</div>' +
+            '</div>';
+
+        var actionsHtml = '<div class="actions">';
+
+        if (effectivePresent) {
+            // Déjà présent (persisté OU marqué dans cette session)
+            actionsHtml += '<span class="badge-present"><i class="fas fa-check"></i> Présent</span>';
+        } else {
+            // Bouton "Marquer présent" (gros bouton, action principale)
+            actionsHtml += '<button type="button" class="btn-presence-pill" ' +
+                'data-action="marquer-presence" ' +
+                'data-client-id="' + client.id + '" ' +
+                'data-solde="' + effectiveSolde + '" ' +
+                'data-date="' + opts.dateReelle + '" ' +
+                'data-heure="' + opts.heureReelle + '">' +
+                '<i class="fas fa-check"></i> Marquer présent</button>';
+        }
+
+        // Petite pilule "Prévu" (uniquement pour cours à venir, pas pour surprises)
+        if (!opts.isPast && kind !== 'surprise') {
+            var isPrevuActive = effectivePrevu ? 'active' : '';
+            var prevuLabel = effectivePrevu ? '<i class="fas fa-star"></i> Prévu' : '<i class="far fa-star"></i> Prévu';
+            actionsHtml += '<button type="button" class="btn-prevu-pill ' + isPrevuActive + '" ' +
+                'data-action="toggle-prevu" ' +
+                'data-client-id="' + client.id + '" ' +
+                'data-creneau-id="' + opts.creneauId + '" ' +
+                'data-date="' + opts.dateReelle + '" ' +
+                'data-heure="' + opts.heureReelle + '">' + prevuLabel + '</button>';
+        }
+
+        actionsHtml += '</div>';
+
+        row.innerHTML = infoHtml + actionsHtml;
+        return row;
+    }
+
+    // ============================================================
+    // Handler AJAX pour "Marquer présence"
+    // ============================================================
+    function validerPresenceAjax(button) {
+        // 1. Mémoriser DANS L'ÉTAT LOCAL avant même l'appel réseau,
+        //    pour que la modale ne repropose PAS le bouton si on la rouvre.
+        var clientId = button.dataset.clientId;
+        var date = button.dataset.date;
+        var heure = button.dataset.heure;
+        var solde = parseInt(button.dataset.solde);
+        var newSolde = isNaN(solde) ? '?' : (solde - 1);
+
+        markedPresent[keyPresence(clientId, date, heure)] = true;
+        soldesModifies[clientId] = newSolde;
+
+        // 2. Envoi au serveur
+        var formData = new FormData();
+        formData.append('client_id', clientId);
+        formData.append('date_seance', date);
+        formData.append('heure_seance', heure);
+
+        fetch('/marquer_presence', { method: 'POST', body: formData }).then(function(r) {
+            if (!r.ok) {
                 alert("Erreur lors de la validation de la présence");
+                // Rollback local si échec serveur
+                delete markedPresent[keyPresence(clientId, date, heure)];
+                delete soldesModifies[clientId];
             }
-        }).catch(error => {
-            console.error('Erreur:', error);
-            alert("Erreur de connexion");
         });
 
-        // 4. MODIFICATION VISUELLE IMMÉDIATE (UI Optimiste)
-        // On remplace le formulaire (le bouton) par le solde restant + le badge vert.
-        // Le solde est décompté de 1 par le marquage de présence.
-        var parentDiv = formElement.parentElement;
-        var soldeAvant = parseInt(formElement.dataset.solde);
-        var soldeApres = isNaN(soldeAvant) ? null : soldeAvant - 1;
-        parentDiv.innerHTML = formaterSolde(soldeApres) +
-            '<span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i> Présent</span>';
-
-        // 5. Mise à jour du compteur en haut (Optionnel mais classe)
-        var titleElement = document.getElementById('clientsInscritsTitle');
-        var text = titleElement.textContent; // Ex: "Clients Inscrits (2 / 5)"
-
-        // On extrait les nombres avec une regex ou découpage simple
-        var matches = text.match(/\((\d+)\s\/\s(\d+)\)/);
-        if (matches) {
-            var currentPresent = parseInt(matches[1]);
-            var total = parseInt(matches[2]);
-            // On incrémente
-            var newPresent = currentPresent + 1;
-            // On remet le texte à jour
-            titleElement.textContent = 'Clients Présents (' + newPresent + ' / ' + total + ')';
-        }
+        // 3. UI optimiste
+        var parent = button.parentElement;
+        parent.innerHTML = '<span class="badge-present"><i class="fas fa-check"></i> Présent</span>';
+        var row = parent.closest('.client-row');
+        var meta = row.querySelector('.client-meta');
+        var pluriel = (Math.abs(newSolde) > 1) ? 's' : '';
+        if (meta) meta.textContent = newSolde + ' séance' + pluriel + ' restante' + pluriel;
     }
 
+    // ============================================================
+    // Handler AJAX pour toggle "Prévu"
+    // ============================================================
+    function togglePrevuAjax(button) {
+        var isActive = button.classList.contains('active');
+        var url = isActive ? '/annuler_prevu' : '/marquer_prevu';
+        var newState = !isActive;
+
+        var clientId = button.dataset.clientId;
+        var creneauId = button.dataset.creneauId;
+        var date = button.dataset.date;
+
+        // Mémoriser DANS L'ÉTAT LOCAL
+        prevuChanges[keyPrevu(clientId, creneauId, date)] = newState;
+
+        var formData = new FormData();
+        formData.append('client_id', clientId);
+        formData.append('creneau_id', creneauId);
+        formData.append('date_seance', date);
+        formData.append('heure_seance', button.dataset.heure);
+
+        // UI optimiste
+        if (newState) {
+            button.classList.add('active');
+            button.innerHTML = '<i class="fas fa-star"></i> Prévu';
+        } else {
+            button.classList.remove('active');
+            button.innerHTML = '<i class="far fa-star"></i> Prévu';
+        }
+
+        fetch(url, { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.ok) {
+                    alert(data.error || "Erreur");
+                    // rollback UI + état local
+                    prevuChanges[keyPrevu(clientId, creneauId, date)] = isActive;
+                    if (isActive) {
+                        button.classList.add('active');
+                        button.innerHTML = '<i class="fas fa-star"></i> Prévu';
+                    } else {
+                        button.classList.remove('active');
+                        button.innerHTML = '<i class="far fa-star"></i> Prévu';
+                    }
+                }
+            });
+    }
+
+    // ============================================================
+    // Init : quand la modale s'ouvre, on remplit selon les data-*
+    // ============================================================
     document.addEventListener('DOMContentLoaded', function () {
         var seanceModal = document.getElementById('seanceModal');
 
         seanceModal.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
 
-            // Récupération des datas
+            var creneauId = button.getAttribute('data-creneau-id');
             var type = button.getAttribute('data-type');
             var heure = button.getAttribute('data-heure');
             var duree = button.getAttribute('data-duree');
             var dateReelle = button.getAttribute('data-date');
+            var isPast = button.getAttribute('data-is-past') === 'true';
 
-            // Les clients sont parsés depuis le JSON
             var clients = JSON.parse(button.getAttribute('data-clients'));
+            var surprises = JSON.parse(button.getAttribute('data-surprises') || '[]');
 
-            // Sélection des éléments DOM
-            var modalType = seanceModal.querySelector('#modalType');
-            var modalHeure = seanceModal.querySelector('#modalHeure');
-            var modalDuree = seanceModal.querySelector('#modalDuree');
-            var clientsList = seanceModal.querySelector('#modalClientsList');
-            var noClientsMsg = seanceModal.querySelector('#noClientsMsg');
-            var clientsInscritsTitle = seanceModal.querySelector('#clientsInscritsTitle');
+            // Header
+            seanceModal.querySelector('#modalType').textContent = type;
+            seanceModal.querySelector('#modalHeure').textContent = heure;
+            seanceModal.querySelector('#modalDuree').textContent = duree;
+            // Formater la date (YYYY-MM-DD → DD/MM)
+            var dateParts = dateReelle.split('-');
+            seanceModal.querySelector('#modalDate').textContent = dateParts[2] + '/' + dateParts[1];
 
-            // Remplissage infos
-            modalType.textContent = type;
-            modalHeure.textContent = heure;
-            modalDuree.textContent = duree;
+            var opts = { isPast: isPast, creneauId: creneauId, dateReelle: dateReelle, heureReelle: heure };
 
-            clientsList.innerHTML = '';
+            // Split : prévus vs inscrits classiques
+            var prevus = clients.filter(function(c) { return c.prevu; });
+            var inscrits = clients.filter(function(c) { return !c.prevu; });
 
-            // Calcul compteur initial
-            var presentCount = clients.filter(client => client.present).length;
-            clientsInscritsTitle.textContent = 'Clients Présents (' + presentCount + ' / ' + clients.length + ')';
-
-            if (clients.length > 0) {
-                noClientsMsg.style.display = 'none';
-
-                clients.forEach(function(client) {
-                    var li = document.createElement('li');
-                    li.className = 'list-group-item px-0 d-flex justify-content-between align-items-center';
-
-                    var nomSpan = '<span class="fw-medium">' + client.nom + '</span>';
-                    var actionHtml = '';
-
-                    if (client.present) {
-                        // CAS 1 : DÉJÀ PRÉSENT (Base de données)
-                        // Le solde en base est déjà décompté : on l'affiche tel quel à gauche du badge.
-                        actionHtml = formaterSolde(client.solde) +
-                            '<span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i> Présent</span>';
-                    } else {
-                        // CAS 2 : BOUTON (Avec appel AJAX)
-                        // Note l'ajout de onsubmit="validerPresenceAjax(...)"
-                        // data-solde permet d'afficher le solde restant après le marquage.
-                        actionHtml = `
-                            <form onsubmit="validerPresenceAjax(event, this)" action="/marquer_presence" method="POST" style="margin:0;" data-solde="${client.solde}">
-                                <input type="hidden" name="client_id" value="${client.id}">
-                                <input type="hidden" name="date_seance" value="${dateReelle}">
-                                <input type="hidden" name="heure_seance" value="${heure}">
-                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">
-                                    Marquer présence
-                                </button>
-                            </form>
-                        `;
-                    }
-
-                    li.innerHTML = nomSpan + '<div class="d-flex align-items-center">' + actionHtml + '</div>';
-                    clientsList.appendChild(li);
-                });
+            // Groupe Prévus
+            var groupPrevus = seanceModal.querySelector('#groupPrevus');
+            var listPrevus = seanceModal.querySelector('#listPrevus');
+            listPrevus.innerHTML = '';
+            if (prevus.length > 0) {
+                prevus.forEach(function(c) { listPrevus.appendChild(renderClientRow(c, 'prevu', opts)); });
+                seanceModal.querySelector('#countPrevus').textContent = prevus.length;
+                groupPrevus.style.display = '';
             } else {
-                noClientsMsg.style.display = 'block';
+                groupPrevus.style.display = 'none';
             }
+
+            // Groupe Inscrits
+            var groupInscrits = seanceModal.querySelector('#groupInscrits');
+            var listInscrits = seanceModal.querySelector('#listInscrits');
+            listInscrits.innerHTML = '';
+            if (inscrits.length > 0) {
+                inscrits.forEach(function(c) { listInscrits.appendChild(renderClientRow(c, 'normal', opts)); });
+                seanceModal.querySelector('#countInscrits').textContent = inscrits.length;
+                groupInscrits.style.display = '';
+            } else {
+                groupInscrits.style.display = 'none';
+            }
+
+            // Groupe Surprises
+            var groupSurprises = seanceModal.querySelector('#groupSurprises');
+            var listSurprises = seanceModal.querySelector('#listSurprises');
+            listSurprises.innerHTML = '';
+            if (surprises.length > 0) {
+                surprises.forEach(function(c) {
+                    var fakeClient = {id: c.id, nom: c.nom, solde: c.solde, present: true, prevu: false, no_show: false};
+                    var row = renderClientRow(fakeClient, 'surprise', opts);
+                    listSurprises.appendChild(row);
+                });
+                seanceModal.querySelector('#countSurprises').textContent = surprises.length;
+                groupSurprises.style.display = '';
+            } else {
+                groupSurprises.style.display = 'none';
+            }
+
+            // Message si tout est vide
+            var noClientsMsg = seanceModal.querySelector('#noClientsMsg');
+            if (clients.length === 0 && surprises.length === 0) {
+                noClientsMsg.style.display = 'block';
+            } else {
+                noClientsMsg.style.display = 'none';
+            }
+        });
+
+        // Délégation clics : présence + prévu (dans la modale)
+        seanceModal.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            if (btn.dataset.action === 'marquer-presence') validerPresenceAjax(btn);
+            else if (btn.dataset.action === 'toggle-prevu') togglePrevuAjax(btn);
         });
     });
 </script>

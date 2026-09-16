@@ -1,73 +1,100 @@
 {% extends 'layout.html' %}
 
+{% block page_title %}Nouveau client{% endblock %}
+{% block page_name %}Nouveau client{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-8">
-            <h2 class="mb-4 text-center">Nouveau Client</h2>
-            
-            <form method="post" class="p-4 border rounded shadow-sm bg-white">
-                
-                <h5 class="text-brand mb-3">Identité</h5>
-                <div class="row mb-3">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <label for="prenom" class="form-label fw-bold">Prénom *</label>
-                        <input type="text" class="form-control" id="prenom" name="prenom" required placeholder="Ex: Marie">
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8 col-xl-7">
+
+        <div class="card">
+            <div class="card-body p-4 p-md-5">
+
+                <form method="post" style="display: flex; flex-direction: column; gap: 24px;">
+
+                    {# --- Section : Identité --- #}
+                    <div>
+                        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+                                    font-weight: 700; color: var(--brand-dark); margin-bottom: 12px;">
+                            Identité
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="prenom" class="form-label">Prénom <span style="color: var(--alert);">*</span></label>
+                                <input type="text" class="form-control" id="prenom" name="prenom" required placeholder="Ex : Marie">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="nom" class="form-label">Nom <span style="color: var(--alert);">*</span></label>
+                                <input type="text" class="form-control" id="nom" name="nom" required placeholder="Ex : Dupont">
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label for="nom" class="form-label fw-bold">Nom *</label>
-                        <input type="text" class="form-control" id="nom" name="nom" required placeholder="Ex: Dupont">
+
+                    {# --- Section : Contact --- #}
+                    <div>
+                        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+                                    font-weight: 700; color: var(--brand-dark); margin-bottom: 12px;">
+                            Contact <span style="color: var(--text-subtle); font-weight: 500; text-transform: none; letter-spacing: 0;">(optionnel)</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="telephone" class="form-label">Téléphone</label>
+                                <input type="tel" class="form-control" id="telephone" name="telephone" placeholder="06 12 34 56 78">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" placeholder="marie.dupont@email.com">
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <hr class="my-4 text-muted">
-
-                <h5 class="text-brand mb-3">Contact (Optionnel)</h5>
-                <div class="row mb-3">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <label for="telephone" class="form-label">Téléphone</label>
-                        <input type="tel" class="form-control" id="telephone" name="telephone" placeholder="Ex: 06 12 34 56 78">
+                    {# --- Section : Séances --- #}
+                    <div>
+                        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+                                    font-weight: 700; color: var(--brand-dark); margin-bottom: 12px;">
+                            Séances
+                        </div>
+                        <label for="seances_restantes" class="form-label">Solde de départ</label>
+                        <input type="number" class="form-control" id="seances_restantes" name="seances_restantes"
+                               value="0" min="0" style="max-width: 200px;">
                     </div>
-                    <div class="col-md-6">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" placeholder="Ex: marie.dupont@email.com">
+
+                    {# --- Section : Créneau récurrent --- #}
+                    <div>
+                        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+                                    font-weight: 700; color: var(--brand-dark); margin-bottom: 12px;">
+                            Créneau récurrent <span style="color: var(--text-subtle); font-weight: 500; text-transform: none; letter-spacing: 0;">(optionnel)</span>
+                        </div>
+                        <select class="form-select" id="creneau" name="creneau" style="max-width: 400px;">
+                            <option value="" selected>Aucun créneau récurrent</option>
+                            {% for creneau in planning %}
+                            {% if creneau.jour_semaine == 0 %}{% set jour = 'Lundi' %}
+                            {% elif creneau.jour_semaine == 1 %}{% set jour = 'Mardi' %}
+                            {% elif creneau.jour_semaine == 2 %}{% set jour = 'Mercredi' %}
+                            {% elif creneau.jour_semaine == 3 %}{% set jour = 'Jeudi' %}
+                            {% elif creneau.jour_semaine == 4 %}{% set jour = 'Vendredi' %}
+                            {% elif creneau.jour_semaine == 5 %}{% set jour = 'Samedi' %}
+                            {% else %}{% set jour = 'Dimanche' %}
+                            {% endif %}
+                            <option value="{{ creneau.id }}">{{ jour }} {{ creneau.heure_debut }} — {{ creneau.type_seance }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                </div>
 
-                <hr class="my-4 text-muted">
+                    {# --- Actions --- #}
+                    <div class="d-flex justify-content-end gap-2 mt-2" style="border-top: 1px solid var(--border); padding-top: 20px;">
+                        <a href="{{ url_for('gestion_clients') }}" class="btn btn-secondary">Annuler</a>
+                        <button type="submit" class="btn btn-brand">
+                            <i class="fas fa-check"></i>
+                            Enregistrer le client
+                        </button>
+                    </div>
 
-                <h5 class="text-brand mb-3">Séances</h5>
-                <div class="mb-4">
-                    <label for="seances_restantes" class="form-label">Solde de départ</label>
-                    <input type="number" class="form-control w-50" id="seances_restantes" name="seances_restantes" value="0" min="0">
-                </div>
+                </form>
 
-                <hr class="my-4 text-muted">
-
-                <h5 class="text-brand mb-3">Créneau (Optionnel)</h5>
-                <div class="mb-4">
-                    <select class="form-select w-50" id="creneau" name="creneau">
-                        <option value="" selected>Aucun</option>
-                        {% for creneau in planning %}
-                        {% if creneau.jour_semaine == 0 %}{% set jour = 'Lundi' %}
-                        {% elif creneau.jour_semaine == 1 %}{% set jour = 'Mardi' %}
-                        {% elif creneau.jour_semaine == 2 %}{% set jour = 'Mercredi' %}
-                        {% elif creneau.jour_semaine == 3 %}{% set jour = 'Jeudi' %}
-                        {% elif creneau.jour_semaine == 4 %}{% set jour = 'Vendredi' %}
-                        {% elif creneau.jour_semaine == 5 %}{% set jour = 'Samedi' %}
-                        {% else %}{% set jour = 'Dimanche' %}
-                        {% endif %}
-                        <option value="{{ creneau.id }}">{{ jour }} {{ creneau.heure_debut }} - {{ creneau.type_seance }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <a href="{{ url_for('gestion_clients') }}" class="btn btn-outline-secondary me-md-2">Annuler</a>
-                    <button type="submit" class="btn btn-success px-4">Enregistrer le client</button>
-                </div>
-            </form>
+            </div>
         </div>
+
     </div>
 </div>
 {% endblock %}

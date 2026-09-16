@@ -1,5 +1,8 @@
 {% extends 'layout.html' %}
 
+{% block page_title %}{{ client['prenom'] }} {{ client['nom'] }}{% endblock %}
+{% block page_name %}Fiche cliente{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     
@@ -40,26 +43,26 @@
         <div class="col-md-6 mb-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-header bg-slot-5 text-white">
-                    {% if habitudes %}
+                    {% if inscriptions %}
                         <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Séances Habituelles</h5>
-                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editHabitudesBtn">
+                            <h5 class="mb-0">Inscriptions récurrentes</h5>
+                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editInscriptionsBtn">
                                 <i class="fas fa-pen-to-square"></i>
                             </button>
                         </div>
                     {% else %}
                         <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Séances Habituelles</h5>
-                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editHabitudesBtn">
+                            <h5 class="mb-0">Inscriptions récurrentes</h5>
+                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editInscriptionsBtn">
                                 <i class="fas fa-pen-to-square"></i>
                             </button>
                         </div>
                     {% endif %}
                 </div>
                 <div class="card-body">
-                    {% if habitudes %}
+                    {% if inscriptions %}
                         <ul class="list-group list-group-flush">
-                            {% for hab in habitudes %}
+                            {% for hab in inscriptions %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <strong>{{ jours[hab['jour_semaine']] }}</strong>
                                 <span>{{ hab['heure_debut'] }}</span>
@@ -68,7 +71,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p class="text-muted text-center py-3">Aucune inscription a une séance.</p>
+                        <p class="text-muted text-center py-3">Aucune inscription à un créneau récurrent.</p>
                     {% endif %}
                 </div>
             </div>
@@ -178,7 +181,7 @@
                 {% for creneau in creneaux %}
                 <label class="list-group-item d-flex gap-3">
                     <input class="form-check-input flex-shrink-0" type="checkbox" name="creneaux" value="{{ creneau['id'] }}"
-                        {% for h in habitudes %}{% if h['id'] == creneau['id'] %}checked{% endif %}{% endfor %}>
+                        {% for h in inscriptions %}{% if h['id'] == creneau['id'] %}checked{% endif %}{% endfor %}>
                     <span>
                         <strong>{{ jours[creneau['jour_semaine']] }}</strong> - {{ creneau['heure_debut'] }}
                         <small class="d-block text-muted">{{ creneau['type_seance'] }}</small>
@@ -305,7 +308,7 @@
             myModal.show();
         });
 
-        $(document).on('click', '#editHabitudesBtn', function () {
+        $(document).on('click', '#editInscriptionsBtn', function () {
             var myModal = new bootstrap.Modal(document.getElementById('modalmodif-inscriptions'));
             myModal.show();
         });

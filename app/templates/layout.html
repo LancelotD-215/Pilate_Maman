@@ -1,151 +1,125 @@
 <!DOCTYPE html>
-<html lang="fr"> <!-- Corps du html, fr pour le référencement en français -->
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Pour le responsive design (adaptation aux différentes tailles d'écran) -->
-    <title>{{ site_name }}</title> <!-- Titre de la page ; site_name est injecté par un context processor dans app.py -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> <!-- Lien vers le CSS de Bootstrap -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block page_title %}{{ site_name }}{% endblock %} · {{ site_name }}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> <!-- Font Awesome pour les icônes -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> <!-- Lien vers ton propre CSS pour les styles personnalisés -->
-    {# Favicon : à ajouter dans /static et à déclarer ici quand un logo sera choisi #}
-    <style>
-        /* Masquer la croix native des inputs search pour éviter la duplication avec la croix Bootstrap */
-        input[type="search"]::-webkit-search-cancel-button {
-            display: none;
-        }
-        input[type="search"]::-webkit-search-decoration {
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {# Favicon : à activer quand un logo sera fourni #}
 </head>
-<body class="bg-body-app"> <!-- Fond de la page (couleur définie dans style.css) -->
+<body>
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-app mb-2 shadow"> <!-- Barre de navigation -->
-        <div class="container-fluid px-3 d-flex align-items-center">
+    {# ==========================================================
+       Slim topbar (barre supérieure) : brand + nom de page + actions
+       ========================================================== #}
+    <nav class="topbar-slim">
+        <a class="brand-mark" href="{{ url_for('index') }}">
+            <span class="brand-dot">{{ site_name[:2] | upper }}</span>
+            <span class="brand-name">{{ site_name }}</span>
+        </a>
 
-            <!-- GAUCHE : Nom du site + Menu -->
-            <div class="d-flex align-items-center flex-shrink-0">
-                <!-- MOBILE : Bouton hamburger (masqué sur desktop) -->
-                <button class="navbar-toggler me-2 d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+        <span class="topbar-page-title">
+            <strong>{% block page_name %}Accueil{% endblock %}</strong>
+        </span>
 
-                <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
-                    {# Placeholder texte tant qu'aucun logo n'est fourni. Pour ajouter un logo :
-                       - déposer l'image dans /static
-                       - remplacer le <span> ci-dessous par <img src="{{ url_for('static', filename='mon-logo.png') }}" height="40" alt="{{ site_name }}"> #}
-                    <span class="fw-bold text-brand">{{ site_name }}</span>
-                </a>
-                <!-- DESKTOP : Menu horizontal (masqué sur mobile) -->
-                <ul class="navbar-nav d-none d-lg-flex">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('planning') }}">Planning</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/gestion_clients">Gestion Clients</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ajout_seances">Ajout séances</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ajout_client">Nouveau Client</a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- MOBILE : Check-in seulement (fixe à droite) -->
-            <a class="btn btn-brand d-lg-none ms-auto" href="/presence">Check-in</a>
-
-            <!-- MOBILE : Menu de navigation collapsible -->
-            <div class="collapse navbar-collapse" id="navbarNav">
-
-                <!-- Barre de recherche mobile (visible uniquement sur petit écran) -->
-                <form class="d-flex d-lg-none mt-3 mb-2 position-relative" action="/recherche_client" method="GET">
-                    <input class="form-control pe-4" type="search" name="q" placeholder="Prénom Nom" aria-label="Rechercher" required id="searchMobile">
-                    <button type="button" class="btn-close btn-sm position-absolute top-50 end-0 translate-middle-y me-2" style="filter: invert(0.5);" onclick="document.getElementById('searchMobile').value=''; document.getElementById('searchMobile').focus();"></button>
-                </form>
-
-                <!-- Navigation mobile seulement (masquée sur desktop) -->
-                <ul class="navbar-nav text-start d-lg-none">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('planning') }}">Planning</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/gestion_clients">Gestion Clients</a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ajout_seances">Ajout séances</a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ajout_client">Nouveau Client</a>
-                    </li>
-                </ul>
-            </div>
-
-            <!--DROITE : Check-in et recherche-->
-            <div class="d-none d-lg-flex align-items-center ms-auto">
-                <form class="d-flex me-3 position-relative" action="/recherche_client" method="GET">
-                    <input class="form-control pe-4" type="search" name="q" placeholder="Prénom Nom" aria-label="Rechercher" required id="searchDesktop">
-                    <button type="button" class="btn-close btn-sm position-absolute top-50 end-0 translate-middle-y me-2" style="filter: invert(0.5);" onclick="document.getElementById('searchDesktop').value=''; document.getElementById('searchDesktop').focus();"></button>
-                </form>
-
-                <a class="btn btn-brand" href="/presence">Check-in</a>
-            </div>
-
+        <div class="topbar-actions">
+            <form class="topbar-search" action="{{ url_for('recherche_client') }}" method="GET">
+                <i class="fas fa-search" style="font-size: 12px; color: var(--text-muted);"></i>
+                <input type="search" name="q" placeholder="Rechercher un client…" aria-label="Rechercher" required>
+            </form>
+            <a href="{{ url_for('presence') }}" class="btn btn-brand btn-sm">
+                <i class="fas fa-check-circle"></i>
+                Check-in
+            </a>
+            <button type="button" class="icon-btn icon-btn-danger"
+                    data-bs-toggle="modal" data-bs-target="#modalLogout"
+                    title="Se déconnecter">
+                <i class="fas fa-right-from-bracket"></i>
+            </button>
         </div>
-
     </nav>
 
-    <div class="container-fluid px-2 px-md-4 px-lg-5">
-        {% block content %}{% endblock %} <!-- Bloc de contenu qui sera remplacé par le contenu spécifique de chaque page -->
+    {# ==========================================================
+       Modale de confirmation déconnexion
+       ========================================================== #}
+    <div class="modal fade" id="modalLogout" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fas fa-right-from-bracket" style="color: var(--alert); margin-right: 6px;"></i>
+              Se déconnecter ?
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p style="margin: 0; color: var(--text-muted); font-size: 14px;">
+              Vous allez être déconnectée. Vous devrez vous reconnecter avec votre identifiant
+              et votre mot de passe pour revenir sur l'espace de gestion.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger">
+              <i class="fas fa-right-from-bracket"></i>
+              Se déconnecter
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
 
-    {% if session.logged_in %}
-    <!-- Bouton de déconnexion, tout en bas de la page -->
-    <footer class="text-center py-4 mt-5 border-top">
-        <div class="text-muted small mb-2">Connectée à l'espace de gestion</div>
-        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">
-            <i class="fas fa-right-from-bracket"></i> Se déconnecter
-        </a>
-    </footer>
-    {% endif %}
+    {# ==========================================================
+       Contenu principal
+       ========================================================== #}
+    <main class="container-fluid px-3 px-md-4 px-lg-5 py-4">
+        {% block content %}{% endblock %}
+    </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> <!-- Lien vers le JS de Bootstrap -->
+    {# ==========================================================
+       Floating dock (navigation flottante en bas)
+       ========================================================== #}
+    <div class="dock-holder">
+        <div class="dock">
+            <a href="{{ url_for('index') }}"
+               class="dock-item {% if request.endpoint == 'index' %}active{% endif %}">
+                <i class="fas fa-home"></i>
+                <span>Accueil</span>
+            </a>
+            <a href="{{ url_for('planning') }}"
+               class="dock-item {% if request.endpoint == 'planning' %}active{% endif %}">
+                <i class="fas fa-calendar"></i>
+                <span>Planning</span>
+            </a>
+            <a href="{{ url_for('gestion_clients') }}"
+               class="dock-item {% if request.endpoint in ['gestion_clients', 'fiche_client', 'recherche_client'] %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Clients</span>
+            </a>
+            <a href="{{ url_for('ajout_client') }}"
+               class="dock-item {% if request.endpoint in ['ajout_client', 'ajout_seances', 'ajout_seances_rapide'] %}active{% endif %}">
+                <i class="fas fa-user-plus"></i>
+                <span>Nouveau</span>
+            </a>
+        </div>
+    </div>
+
+    {# ==========================================================
+       Scripts
+       ========================================================== #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 
-    <script>
-        $(document).ready(function () {
-            $('#tableauClients').DataTable({
-                language: {
-                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
-                },
-                // --- PERSONNALISATION (Change true par false pour tester) ---
-
-                // Enlever le choix "Afficher 10/25/50 éléments" ?
-                lengthChange: false,  // false = Cache le menu déroulant "Afficher X entrées"
-
-                // Choisir combien de lignes s'affichent par défaut (ex: 5 au lieu de 10)
-                pageLength: 5,
-
-                // Enlever la barre de recherche ?
-                searching: true,     // false = Cache la barre "Rechercher"
-
-                // Enlever la pagination (Page 1, 2, Suivant) ?
-                paging: false,        // false = Affiche TOUT le tableau sur une seule page
-
-                // Enlever le petit texte "Affichage de 1 à 5 sur 12 entrées" ?
-                info: false,          // false = Cache le résumé en bas à gauche
-
-                // Enlever le tri automatique au chargement (pour garder ton ordre SQL) ?
-                ordering: true       // false = Désactive les flèches de tri
-            });
-        });
-    </script>
+    {# Note : l'init DataTables se fait dans chaque page qui en a besoin
+       (voir gestion_clients.html) pour permettre des configs différentes. #}
 </body>
 </html>

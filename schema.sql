@@ -9,7 +9,9 @@ date : 2026/01/20
 
 -- Supprimer les tables existantes pour éviter les conflits (ordre inverse des dépendances)
 DROP TABLE IF EXISTS historique_seances;
-DROP TABLE IF EXISTS habitudes;
+DROP TABLE IF EXISTS previsions;
+DROP TABLE IF EXISTS inscriptions;
+DROP TABLE IF EXISTS habitudes;              -- ancien nom, conservé pour nettoyer les anciennes bases
 DROP TABLE IF EXISTS calendrier_seances;
 DROP TABLE IF EXISTS semaine_type;
 DROP TABLE IF EXISTS clients;
@@ -37,13 +39,28 @@ CREATE TABLE semaine_type (
     actif INTEGER DEFAULT 1
 );
 
--- Création de la table des habitudes des clients
-CREATE TABLE habitudes (
+-- Création de la table des inscriptions des clients à des créneaux récurrents
+-- (un client "inscrit" à un créneau est censé venir toutes les semaines à ce créneau)
+CREATE TABLE inscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id INTEGER NOT NULL,
     creneau_id INTEGER NOT NULL,
     date_debut DATE DEFAULT (date('now')),
     FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE CASCADE,
+    FOREIGN KEY (creneau_id) REFERENCES semaine_type(id) ON DELETE CASCADE
+);
+
+-- Création de la table des prévisions (client confirmé pour un cours à une date précise)
+-- Contrairement aux inscriptions (récurrentes), les prévisions sont datées :
+-- "Sophie a confirmé qu'elle vient au Pilates du 25 mars"
+CREATE TABLE previsions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    creneau_id INTEGER NOT NULL,
+    date_seance DATE NOT NULL,                          -- date précise du cours (pas récurrent)
+    date_confirmation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(client_id, creneau_id, date_seance),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     FOREIGN KEY (creneau_id) REFERENCES semaine_type(id) ON DELETE CASCADE
 );
 

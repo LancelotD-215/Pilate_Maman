@@ -39,8 +39,8 @@ CLIENTS_DEMO = [
     ("David",  "Fixture",  -2, 20, None,         "david@test.local"),
 ]
 
-# --- Habitudes (client_index dans CLIENTS_DEMO -> [creneau_index dans CRENEAUX_DEMO]) ---
-HABITUDES_DEMO = {
+# --- Inscriptions (client_index dans CLIENTS_DEMO -> [creneau_index dans CRENEAUX_DEMO]) ---
+INSCRIPTIONS_DEMO = {
     0: [0, 2],   # Alice : Lundi 9h30 + Mercredi 10h
     1: [1],      # Bob   : Lundi 18h
     2: [3],     # Chloe : Jeudi 19h
@@ -51,7 +51,7 @@ HABITUDES_DEMO = {
 def init_db_test():
     """Crée database_clients.db avec un jeu de données de démonstration. Écrase toute base existante."""
     if os.path.exists(DB_PATH):
-        confirm = input(f"⚠️  '{DB_PATH}' existe déjà. Écraser ? (o/N) ").strip().lower()
+        confirm = input(f"[!] '{DB_PATH}' existe deja. Ecraser ? (o/N) ").strip().lower()
         if confirm != "o":
             print("Abandon.")
             return
@@ -84,11 +84,11 @@ def init_db_test():
             (cur.lastrowid, "NEW_ACCOUNT", restantes, now),
         )
 
-    # Insertion des habitudes
-    for client_idx, creneau_indices in HABITUDES_DEMO.items():
+    # Insertion des inscriptions
+    for client_idx, creneau_indices in INSCRIPTIONS_DEMO.items():
         for creneau_idx in creneau_indices:
             connection.execute(
-                "INSERT INTO habitudes (client_id, creneau_id) VALUES (?, ?)",
+                "INSERT INTO inscriptions (client_id, creneau_id) VALUES (?, ?)",
                 (client_ids[client_idx], creneau_ids[creneau_idx]),
             )
 
@@ -102,8 +102,8 @@ def init_db_test():
     connection.commit()
     connection.close()
 
-    print(f"✅ Base de test créée : {DB_PATH}")
-    print(f"   → {len(CRENEAUX_DEMO)} créneaux, {len(CLIENTS_DEMO)} clients, historique de démo.")
+    print(f"[OK] Base de test creee : {DB_PATH}")
+    print(f"   -> {len(CRENEAUX_DEMO)} creneaux, {len(CLIENTS_DEMO)} clients, historique de demo.")
 
 
 if __name__ == "__main__":

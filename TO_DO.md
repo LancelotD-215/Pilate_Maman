@@ -22,6 +22,12 @@
 - [ ] Page dédiée à la gestion des créneaux (`semaine_type`) depuis l'interface
 - [ ] Vérifier que le compteur "séances du mois" reste correct après ajout de nouveaux types de cours
 
+## Design / UX
+- [ ] Implémenter un mode sombre (thème dark) en complément du thème clair actuel
+- [ ] Intégrer le logo définitif du studio dans `app/static/` (nav + login + favicon)
+- [ ] Remplacer les couleurs placeholder (turquoise/beige) par les vraies couleurs de la maman dans `style.css`
+- [ ] (Optionnel) Convertir en **PWA** (Progressive Web App) — ajouter `manifest.json` + service worker minimal pour que le site puisse s'installer sur l'écran d'accueil du téléphone comme une "vraie app" (plein écran, icône personnalisée, sans barre Safari)
+
 ## Optionnel (nice-to-have)
 - [ ] Sélecteur de calendrier pour choisir les créneaux habituels à la création client
 - [ ] Section commentaires dans l'agenda

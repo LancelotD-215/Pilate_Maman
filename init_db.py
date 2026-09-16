@@ -22,7 +22,7 @@ SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
 def init_db():
     """Crée database_clients.db à partir de schema.sql. Écrase toute base existante."""
     if os.path.exists(DB_PATH):
-        confirm = input(f"⚠️  '{DB_PATH}' existe déjà. Écraser ? (o/N) ").strip().lower()
+        confirm = input(f"[!] '{DB_PATH}' existe deja. Ecraser ? (o/N) ").strip().lower()
         if confirm != "o":
             print("Abandon.")
             return
@@ -36,8 +36,8 @@ def init_db():
     connection.commit()
     connection.close()
 
-    print(f"✅ Base créée : {DB_PATH}")
-    print("   → Aucune donnée insérée. Ajouter clients et créneaux via l'interface web.")
+    print(f"[OK] Base creee : {DB_PATH}")
+    print("   -> Aucune donnee inseree. Ajouter clients et creneaux via l'interface web.")
 
 
 if __name__ == "__main__":

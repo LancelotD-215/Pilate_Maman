@@ -13,7 +13,7 @@ logo, identifiants admin) pour un nouveau déploiement.
 
 - Remplacer le suivi papier par une base de données numérique
 - Gérer les soldes de séances de chaque client
-- Suivre la fréquentation et les habitudes (créneaux récurrents)
+- Suivre la fréquentation et les inscriptions (créneaux récurrents)
 - Visualiser le planning hebdomadaire et valider les présences
 - Permettre aux clients de pointer eux-mêmes via une **borne**
 - Interface responsive (ordinateur / tablette / mobile)
@@ -47,7 +47,7 @@ Schéma complet dans [`schema.sql`](schema.sql).
 `id`, `jour_semaine` (0=Lundi … 6=Dimanche), `heure_debut` (`"HH:MM"`),
 `duree` (minutes), `type_seance`, `actif`.
 
-### Table `habitudes` (créneaux habituels d'un client)
+### Table `inscriptions` (créneaux récurrents auxquels un client est inscrit)
 `id`, `client_id` → `clients`, `creneau_id` → `semaine_type`, `date_debut`.
 
 ### Table `historique_seances`
@@ -85,7 +85,7 @@ pour un pointage en un clic les fois suivantes. Page de succès dédiée.
 
 ### 📝 Nouveau client (`/ajout_client`)
 Formulaire complet (identité, contact, solde initial, abonnement) avec choix
-d'un créneau habituel → création automatique de l'habitude associée.
+d'un créneau récurrent → création automatique de l'inscription associée.
 
 ### 💰 Ajout de séances (`/ajout_seances` et ajout rapide)
 Recharge des comptes, depuis la page dédiée, la liste clients ou la fiche client.
@@ -94,14 +94,14 @@ Traçabilité complète dans l'historique.
 ### 📅 Planning hebdomadaire (`/planning`)
 Vue calendrier (Lundi→Vendredi, 9h–21h), navigation semaine par semaine,
 créneaux positionnés à l'heure, mise en évidence du jour courant.
-Affiche les habitués attendus par créneau et leur **statut de présence**
+Affiche les clients inscrits attendus par créneau et leur **statut de présence**
 (pointage détecté entre −30 min et la fin du cours). Validation manuelle
 de présence directement depuis un créneau.
 
 ### 👤 Fiche client (`/client/<id>`)
-Coordonnées, solde, statistiques, habitudes (créneaux récurrents),
+Coordonnées, solde, statistiques, inscriptions (créneaux récurrents),
 10 dernières actions de l'historique, ajout de séances et **modification des
-habitudes** via modale. Accessible aussi par la recherche globale (barre de nav).
+inscriptions** via modale. Accessible aussi par la recherche globale (barre de nav).
 Suppression du client possible depuis la fiche.
 
 ---

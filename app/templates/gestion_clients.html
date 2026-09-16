@@ -1,129 +1,136 @@
 {% extends 'layout.html' %}
 
+{% block page_title %}Clients{% endblock %}
+{% block page_name %}Clients{% endblock %}
+
 {% block content %}
 
+{# Compteur AU-DESSUS de la carte (pas dans le card-header) #}
+<div class="mb-3">
+    <span style="color: var(--text); font-weight: 700; font-size: 22px; letter-spacing: -0.01em;">
+        {{ clients|length }}
+    </span>
+    <span style="color: var(--text-muted); font-size: 14px; margin-left: 4px;">
+        {{ 'client inscrit' if clients|length <= 1 else 'clients inscrits' }}
+    </span>
+</div>
 
-<div class="row justify-content-center"> <!-- Ligne Bootstrap pour aligner les colonnes au centre -->
-    <div class="col-md-12"> <!-- Colonne de taille moyenne (8/12), md pour medium sur les écrans moyens -->
-        <div class="card shadow-sm"> <!-- Carte Bootstrap (zone encadrée), et ombre légère (sm pour small) -->
-            <div class="card-header bg-white"> <!-- En-tête de la carte avec fond blanc -->
-                <h4 class="mb-0">Liste des clients</h4>
-            </div>
-            <div class="card-body p-0"> <!-- Corps de la carte avec padding nul -->
-                <table id="tableauClients" class="table table-striped mb-0"> <!-- Table Bootstrap avec lignes alternées (striped) et marge basse nulle -->
-                    <thead>
-                        <tr>
-                            <th class="w-25">Prénom</th>
-                            <th class="w-25">Nom</th>
-                            <th class="text-center w-45">Séances restantes</th>
-                            <th class="text-center w-5">Infos</th>
-                            <th class="text-center w-5">Ajout</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for client in clients %} <!-- Coeur dynamique : boucle sur la liste des clients passée depuis le backend -->
-                        <tr> <!-- Ligne du tableau pour chaque client, table row -->
-                            <td>{{ client['prenom'] }}</td> <!-- Cellule du tableau pour le prénom, table data -->
-                            <td>{{ client['nom'] }}</td> <!-- Double accolade pour insérer la valeur dynamique du nom -->
-                            <td class="text-center" data-order="{{ client['seances_restantes'] }}"> <!-- Centre le texte de cette cellule -->
-                                <span class="badge rounded-pill 
-                                    {% if client['seances_restantes'] > 0 %}
-                                        bg-success
-                                    {% elif client['seances_restantes'] == 0 %}
-                                        bg-warning
-                                    {% else %}
-                                        bg-danger
-                                    {% endif %}">
-                                    {{ client['seances_restantes'] }}
-                                </span>
-                            </td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-outline-info rounded-pill btn-voir-fiche"
-                                        data-client-id="{{ client['id'] }}">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
-                            </td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill btn-ajout-rapide"
+{# ==========================================================
+   Tableau des clients (DataTables : search + tri, pas de pagination)
+   ========================================================== #}
+<div class="card">
+    <div class="card-body p-0">
+        <table id="tableauClients" class="table mb-0">
+            <thead>
+                <tr>
+                    <th class="w-25">Prénom</th>
+                    <th class="w-25">Nom</th>
+                    <th class="text-center">Séances restantes</th>
+                    <th class="text-center" style="width: 80px;">Infos</th>
+                    <th class="text-center" style="width: 80px;">Ajout</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for client in clients %}
+                <tr>
+                    <td>{{ client['prenom'] }}</td>
+                    <td>{{ client['nom'] }}</td>
+                    <td class="text-center" data-order="{{ client['seances_restantes'] }}">
+                        <span class="badge
+                            {% if client['seances_restantes'] > 0 %}bg-success
+                            {% elif client['seances_restantes'] == 0 %}bg-warning
+                            {% else %}bg-danger{% endif %}">
+                            {{ client['seances_restantes'] }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="icon-btn btn-voir-fiche"
+                                data-client-id="{{ client['id'] }}"
+                                title="Voir la fiche">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="icon-btn btn-ajout-rapide"
                                 data-id="{{ client['id'] }}"
                                 data-prenom="{{ client['prenom'] }}"
-                                data-nom="{{ client['nom'] }}">
-                                    <i class="fas fa-plus-circle"></i>
-                                </button>
-                           </td>
-                        </tr>
-                        {% endfor %} <!-- Fin de la boucle sur les clients -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                                data-nom="{{ client['nom'] }}"
+                                title="Ajouter des séances">
+                            <i class="fas fa-plus-circle"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
+{# ==========================================================
+   Modale ajout de séances
+   ========================================================== #}
 <div class="modal fade" id="modalAjoutSeance" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <form action="/ajout_seances_rapide" method="POST">
-          
-        <div class="modal-header bg-light">
+        <div class="modal-header">
           <h5 class="modal-title">Ajouter des séances</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        
         <div class="modal-body">
-            <div class="mb-4 text-center">
-                    <p class="text-center">Ajout de séances pour :</p>
-                    <h3 id="modalClientNom" class="text-brand fw-bold mb-0"></h3>
-            </div>
-          
+          <div class="mb-4 text-center">
+            <p class="text-center" style="color: var(--text-muted); margin-bottom: 6px;">Ajout de séances pour :</p>
+            <h3 id="modalClientNom" class="text-brand fw-bold mb-0"></h3>
+          </div>
           <input type="hidden" name="client_id" id="inputClientId">
-
           <hr>
-
           <div class="mb-3">
             <label class="form-label">Nombre de séances à ajouter</label>
             <input type="number" class="form-control form-control-lg text-center" name="seances_ajoutees" value="5" min="1" required>
           </div>
         </div>
-
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-success">Valider</button>
+          <button type="submit" class="btn btn-brand">Valider</button>
         </div>
-
       </form>
     </div>
   </div>
 </div>
 
 <script>
-    // On attend que le document soit chargé
-    // Note: Assure-toi que jQuery est bien chargé dans layout.html AVANT ce bloc
     document.addEventListener("DOMContentLoaded", function() {
-        
-        // On utilise jQuery avec "delegation" pour gérer DataTables
-        // Au lieu de dire "Sur le bouton", on dit "Sur le Document, surveille les clics qui viennent de .btn-ajout-rapide"
+        // Réinit DataTable en désactivant la pagination pour cette page (liste défilable)
+        if ($.fn.DataTable.isDataTable('#tableauClients')) {
+            $('#tableauClients').DataTable().destroy();
+        }
+        $('#tableauClients').DataTable({
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json' },
+            lengthChange: false,
+            paging: false,       // pas de pagination : une seule grande liste défilante
+            info: false,
+            searching: true,
+            ordering: true,
+            // DOM par défaut : barre de recherche au-dessus du tableau à droite
+            dom: 'frt'
+        });
+
+        // Bouton "Ajouter des séances" via modale
         $(document).on('click', '.btn-ajout-rapide', function () {
-            
-            // 1. On récupère les infos
             var id = $(this).data('id');
             var prenom = $(this).data('prenom');
             var nom = $(this).data('nom');
-
-            // 2. On remplit la modale
             $('#inputClientId').val(id);
             $('#modalClientNom').text(prenom + ' ' + nom);
-
-            // 3. On affiche la modale Bootstrap
-            var myModal = new bootstrap.Modal(document.getElementById('modalAjoutSeance'));
-            myModal.show();
+            new bootstrap.Modal(document.getElementById('modalAjoutSeance')).show();
         });
-        
-        // Gestion du clic sur le bouton Info
+
+        // Bouton "Info" → redirection vers la fiche client
         $(document).on('click', '.btn-voir-fiche', function() {
             var clientId = $(this).data('client-id');
             window.location.href = '/client/' + clientId;
         });
+
     });
 </script>
 

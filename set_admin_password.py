@@ -25,7 +25,7 @@ def main():
         print("❌ Les mots de passe ne correspondent pas, abandon.")
         return
 
-    print("\n✅ Copier la ligne ci-dessous dans app.py :\n")
+    print("\n[OK] Copier la ligne ci-dessous dans app.py :\n")
     print(f'ADMIN_PASSWORD_HASH = "{generate_password_hash(pwd)}"\n')
 
 

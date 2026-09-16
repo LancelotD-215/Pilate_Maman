@@ -1,262 +1,617 @@
-{% extends 'layout.html' %} <!-- Pour dire qu'on ce greffe au layout.html, et que ce n'est pas une page complète -->
+{% extends 'layout.html' %}
 
-{% block content %} <!-- Début du bloc de contenu spécifique à cette page -->
-<div class="text-center py-5"> <!-- Centre le texte avec un padding (espace intérieur) vertical de 5 -->
-    <h1 class="display-4">Tableau de bord</h1> <!-- Titre principal, display-4 pour une grande taille de texte -->
-    <p class="lead text-muted">{{ site_name }}</p> <!-- Nom du site (injecté par app.py) -->
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_name %}Tableau de bord{% endblock %}
+
+{% block content %}
+
+<style>
+  /* Styles spécifiques au dashboard */
+  .widget-graph {
+    min-height: 200px;
+  }
+  .widget-graph svg { display: block; }
+
+  /* Bar chart : jolie animation apparition */
+  .bar-chart-bar {
+    transition: opacity 0.3s;
+  }
+  .bar-chart-bar:hover { opacity: 0.8; }
+
+  /* Présents vs Inscrits — liste de créneaux */
+  .pvi-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 44px;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pvi-row:last-child { border-bottom: none; }
+  .pvi-label {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .pvi-label small {
+    display: block;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 10.5px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    margin-top: 1px;
+  }
+  .pvi-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pvi-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--brand-tint);
+    position: relative;
+    overflow: hidden;
+  }
+  .pvi-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 6px;
+  }
+  .pvi-bar-fill.inscrits { background: var(--brand); }
+  .pvi-bar-fill.presents { background: var(--sage); }
+  .pvi-bar-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+  }
+  .pvi-taux {
+    text-align: right;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .pvi-taux.low  { color: var(--alert); }
+  .pvi-taux.mid  { color: var(--warning); }
+  .pvi-taux.high { color: var(--success); }
+</style>
+
+<div class="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1>Bonjour</h1>
+        <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Voici votre activité aujourd'hui</p>
+    </div>
+    <button type="button" class="btn btn-outline-secondary btn-sm"
+            data-bs-toggle="modal" data-bs-target="#modalWidgetsConfig">
+        <i class="fas fa-pen-to-square"></i>
+        Personnaliser les widgets
+    </button>
 </div>
 
+{# ==========================================================
+   Alertes prioritaires (soldes négatifs / à zéro)
+   ========================================================== #}
 {% if widgets['negative_balance'] and negative_clients %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm border-danger">
-            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Attention : Soldes Négatifs</h5>
-                <span class="badge bg-white text-danger">{{ negative_clients|length }} client(s)</span>
-            </div>
-            
-            <div class="card-body">
-                <p class="card-text text-danger">Ces clients ont un solde de séances négatif :</p>
-                
-                <div class="list-group">
-                    {% for client in negative_clients %}
-                    <div class="list-group-item list-group-item-danger d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>{{ client['prenom'] }} {{ client['nom'] }}</strong>
-                        </div>
-                        <div class="fw-bold">
-                            {{ client['seances_restantes'] }} séances
-                            
-                            <button type="button" class="btn btn-sm btn-outline-danger ms-3 btn-regulariser"
-                                    data-id="{{ client['id'] }}"
-                                    data-prenom="{{ client['prenom'] }}"
-                                    data-nom="{{ client['nom'] }}">
-                                Régulariser
-                            </button>
-                        </div>
-                    </div>
-                    {% endfor %}
+<div class="alert-card alert-danger">
+    <div class="alert-icon"><i class="fas fa-exclamation"></i></div>
+    <div class="alert-body">
+        <h4 class="alert-title">
+            <span class="accent">{{ negative_clients|length }}</span>
+            client{% if negative_clients|length > 1 %}s{% endif %} en solde négatif
+            <span style="color: var(--text-muted); font-weight: 500; font-size: 13px; margin-left: 6px;">
+                — cliquez pour régulariser
+            </span>
+        </h4>
+        <div class="alert-clients">
+            {% for client in negative_clients %}
+            <button type="button" class="alert-client-btn btn-regulariser"
+                    data-id="{{ client['id'] }}"
+                    data-prenom="{{ client['prenom'] }}"
+                    data-nom="{{ client['nom'] }}">
+                <div class="alert-client-info">
+                    <span class="name">{{ client['prenom'] }} {{ client['nom'] }}</span>
+                    <span class="solde">{{ client['seances_restantes'] }} séance{% if client['seances_restantes'] < -1 or client['seances_restantes'] > 1 %}s{% endif %}</span>
                 </div>
-            </div>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            {% endfor %}
         </div>
     </div>
 </div>
 {% endif %}
 
 {% if widgets['zero_balance'] and zero_clients %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm border-warning">
-            <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Attention : Soldes à Zéro</h5>
-                <span class="badge bg-white text-warning">{{ zero_clients|length }} client(s)</span>
-            </div>
-            
-            <div class="card-body">
-                <p class="card-text text-warning">Ces clients ont un solde de séances à zéro :</p>
-                
-                <div class="list-group">
-                    {% for client in zero_clients %}
-                    <div class="list-group-item list-group-item-warning d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>{{ client['prenom'] }} {{ client['nom'] }}</strong>
-                        </div>
-                        <div class="fw-bold">                        
-                            <button type="button" class="btn btn-sm btn-outline-warning text-secondary ms-3 btn-ajout-seances"
-                                    data-id="{{ client['id'] }}"
-                                    data-prenom="{{ client['prenom'] }}"
-                                    data-nom="{{ client['nom'] }}">
-                                Ajouter des séances
-                            </button>
-                        </div>
-                    </div>
-                    {% endfor %}
+<div class="alert-card alert-warning">
+    <div class="alert-icon"><i class="fas fa-hourglass-half"></i></div>
+    <div class="alert-body">
+        <h4 class="alert-title">
+            <span class="accent">{{ zero_clients|length }}</span>
+            client{% if zero_clients|length > 1 %}s{% endif %} à zéro séance
+            <span style="color: var(--text-muted); font-weight: 500; font-size: 13px; margin-left: 6px;">
+                — cliquez pour recharger
+            </span>
+        </h4>
+        <div class="alert-clients">
+            {% for client in zero_clients %}
+            <button type="button" class="alert-client-btn btn-ajout-seances"
+                    data-id="{{ client['id'] }}"
+                    data-prenom="{{ client['prenom'] }}"
+                    data-nom="{{ client['nom'] }}">
+                <div class="alert-client-info">
+                    <span class="name">{{ client['prenom'] }} {{ client['nom'] }}</span>
+                    <span class="solde">0 séance</span>
                 </div>
-            </div>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            {% endfor %}
         </div>
     </div>
 </div>
 {% endif %}
 
-<div class="row g-4 mb-5"> <!-- Grille Bootstrap avec des colonnes, g-4 pour un espacement de 4 entre les colonnes, mb-5 pour une marge inférieure de 5 -->
-    {% if widgets['best_client_month'] %}
-    <div class="col-md-6 col-xl-3"> 
-        <div class="card shadow-sm h-100 border-success"> 
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">Meilleur client du mois</h5>
+{% if widgets['suggestions_inscription'] and suggestions_inscription %}
+<div class="alert-card" style="
+    background: linear-gradient(90deg,
+        rgba(42, 167, 155, 0.28) 0%,
+        rgba(42, 167, 155, 0.12) 15%,
+        var(--brand-tint) 45%,
+        var(--brand-tint) 100%);
+    border: 1px solid rgba(42, 167, 155, 0.28);
+    border-left: 5px solid var(--brand);">
+    <div class="alert-icon" style="background: var(--surface); color: var(--brand); box-shadow: 0 2px 6px rgba(42, 167, 155, 0.15);">
+        <i class="fas fa-lightbulb"></i>
+    </div>
+    <div class="alert-body">
+        <h4 class="alert-title">
+            <span class="accent" style="color: var(--brand-dark);">{{ suggestions_inscription|length }}</span>
+            suggestion{% if suggestions_inscription|length > 1 %}s{% endif %} d'inscription
+            <span style="color: var(--text-muted); font-weight: 500; font-size: 13px; margin-left: 6px;">
+                — ces personnes viennent souvent sans être inscrites
+            </span>
+        </h4>
+        <div class="alert-clients">
+            {% for s in suggestions_inscription %}
+            <div class="alert-client-btn" style="cursor: default;">
+                <div class="alert-client-info">
+                    <span class="name">{{ s.prenom }} {{ s.nom }}</span>
+                    <span class="solde" style="color: var(--brand-dark);">
+                        {{ s.streak }}× d'affilée · {{ s.creneau_label }}
+                    </span>
+                </div>
+                <form action="/inscrire_suggestion" method="POST" style="margin: 0;">
+                    <input type="hidden" name="client_id" value="{{ s.client_id }}">
+                    <input type="hidden" name="creneau_id" value="{{ s.creneau_id }}">
+                    <button type="submit" class="btn btn-brand btn-sm">
+                        <i class="fas fa-plus"></i> Inscrire
+                    </button>
+                </form>
             </div>
-            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                {% if best_clients_month %}
-                    <h4 class="card-title mb-2">{{ best_clients_month['prenom'] }} {{ best_clients_month['nom'] }}</h6>
-                    <div class="display-4 fw-bold text-success mb-2">{{ best_clients_month['seances_utilisees'] }}</div>
-                    <p class="text-muted mb-0 small">séances utilisées</p>
-                {% else %}
-                    <p class="text-muted">Aucune donnée ce mois-ci</p>
-                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ==========================================================
+   Row 1 — Quick stats principales
+   ========================================================== #}
+<div class="row g-3 mt-2">
+
+    {% if widgets['prochain_cours'] %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget">
+            <div class="widget-head">
+                <span>Prochain cours</span>
+                <div class="widget-icon"><i class="fas fa-clock"></i></div>
             </div>
+            {% if prochain_cours %}
+                <div class="widget-value sm">{{ prochain_cours.type_seance }}</div>
+                <div class="widget-caption">
+                    <strong style="color: var(--text); font-weight: 700;">{{ prochain_cours.heure_debut }}</strong>
+                    · {{ prochain_cours.duree }} min · {{ prochain_cours.nb_inscrits }} inscrit{% if prochain_cours.nb_inscrits > 1 %}s{% endif %}
+                </div>
+            {% else %}
+                <div class="widget-value sm" style="color: var(--text-muted);">Aucun cours restant</div>
+                <div class="widget-caption">Pas de cours prévu aujourd'hui</div>
+            {% endif %}
         </div>
     </div>
     {% endif %}
 
-    {% if widgets['client_not_comming'] and clients_not_coming %}
-    <div class="col-md-6 col-xl-3"> 
-        <div class="card shadow-sm h-100 border-warning"> 
-            <div class="card-header bg-warning text-white">
-                <h5 class="mb-0">Clients absents depuis 1 mois</h5>
-            </div>
-            <div class="card-body">
-                <div class="display-4 fw-bold text-warning text-center mb-3">{{ clients_not_coming|length }}</div>
-                <p class="text-muted text-center mb-3 small">client(s) absent(s)</p>
-                
-                <div class="list-group list-group-flush">
-                    {% for client in clients_not_coming[:3] %}
-                    <div class="list-group-item px-0 py-1 border-0">
-                        <small class="text-muted">{{ client['prenom'] }} {{ client['nom'] }}</small>
-                    </div>
-                    {% endfor %}
-                    
-                    {% if clients_not_coming|length > 3 %}
-                    <div class="list-group-item px-0 py-1 border-0">
-                        <small class="text-muted fst-italic">... et {{ clients_not_coming|length - 3 }} autre(s)</small>
-                    </div>
-                    {% endif %}
+    {% if widgets['apercu_jour'] %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget">
+            <div class="widget-head">
+                <span>Aperçu du jour</span>
+                <div class="widget-icon" style="background: var(--sage-tint); color: var(--sage);">
+                    <i class="fas fa-calendar-check"></i>
                 </div>
             </div>
+            {% if apercu_jour and apercu_jour.nb_cours > 0 %}
+                <div class="widget-value">{{ apercu_jour.nb_cours }}</div>
+                <div class="widget-caption">
+                    cours restant{% if apercu_jour.nb_cours > 1 %}s{% endif %}
+                    · {{ apercu_jour.total_inscrits }} inscrit{% if apercu_jour.total_inscrits > 1 %}s{% endif %} attendu{% if apercu_jour.total_inscrits > 1 %}s{% endif %}
+                </div>
+            {% else %}
+                <div class="widget-value" style="color: var(--text-muted);">0</div>
+                <div class="widget-caption">Journée terminée</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if widgets['best_client_month'] %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget brand-fill">
+            <div class="widget-head"><span>Meilleur client du mois</span></div>
+            {% if best_clients_month %}
+                <div class="widget-value">{{ best_clients_month['seances_utilisees'] }}</div>
+                <div class="widget-caption">séance{% if best_clients_month['seances_utilisees'] > 1 %}s{% endif %} effectuée{% if best_clients_month['seances_utilisees'] > 1 %}s{% endif %}</div>
+                <div class="widget-value sm">{{ best_clients_month['prenom'] }} {{ best_clients_month['nom'] }}</div>
+            {% else %}
+                <div class="widget-caption">Aucune donnée ce mois-ci</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if widgets['nouveaux_clients'] %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget">
+            <div class="widget-head">
+                <span>Nouveaux clients</span>
+                <div class="widget-icon" style="background: var(--success-tint); color: var(--success);">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+            </div>
+            <div class="widget-value">{{ nouveaux_clients or 0 }}</div>
+            <div class="widget-caption">inscrit{% if (nouveaux_clients or 0) > 1 %}s{% endif %} ce mois</div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{# ==========================================================
+   Row 2 — Stats secondaires
+   ========================================================== #}
+<div class="row g-3 mt-1">
+
+    {% if widgets['total_clients'] %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget">
+            <div class="widget-head">
+                <span>Total clients</span>
+                <div class="widget-icon"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="widget-value">{{ total_clients or 0 }}</div>
+            <div class="widget-caption">inscrits à ce jour</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if widgets['fideles'] %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget">
+            <div class="widget-head">
+                <span>Clients fidèles</span>
+                <div class="widget-icon" style="background: var(--warning-tint); color: var(--warning);">
+                    <i class="fas fa-trophy"></i>
+                </div>
+            </div>
+            <div class="widget-value">{{ fideles or 0 }}</div>
+            <div class="widget-caption">plus de 20 séances effectuées</div>
         </div>
     </div>
     {% endif %}
 
     {% if widgets['most_remaining'] %}
     <div class="col-md-6 col-xl-3">
-        <div class="card shadow-sm h-100 border-info">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">Client avec le plus de séances restantes</h5>
+        <div class="widget">
+            <div class="widget-head">
+                <span>Plus grand solde</span>
+                <div class="widget-icon"><i class="fas fa-star"></i></div>
             </div>
-            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                {% if client_most_remaining %}
-                    <h4 class="card-title mb-2">{{ client_most_remaining['prenom'] }} {{ client_most_remaining['nom'] }}</h6>
-                    <div class="display-4 fw-bold text-info mb-2">{{ client_most_remaining['seances_restantes'] }}</div>
-                    <p class="text-muted mb-0 small">séances restantes</p>
-                {% else %}
-                    <p class="text-muted">Aucun client</p>
+            {% if client_most_remaining %}
+                <div class="widget-value">{{ client_most_remaining['seances_restantes'] }}</div>
+                <div class="widget-caption">séances restantes</div>
+                <div class="widget-value sm">{{ client_most_remaining['prenom'] }} {{ client_most_remaining['nom'] }}</div>
+            {% else %}
+                <div class="widget-caption">Aucun client</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if widgets['client_not_comming'] and clients_not_coming %}
+    <div class="col-md-6 col-xl-3">
+        <div class="widget warm-fill">
+            <div class="widget-head">
+                <span>Absents 30 jours</span>
+                <div class="widget-icon" style="background: rgba(0,0,0,0.06); color: var(--text);">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+            </div>
+            <div class="widget-value">{{ clients_not_coming|length }}</div>
+            <div class="widget-caption">à relancer si nécessaire</div>
+            <div class="chips-inline" style="margin-top: 4px;">
+                {% for client in clients_not_coming[:3] %}
+                <span class="chip">{{ client['prenom'] }} {{ client['nom'] }}</span>
+                {% endfor %}
+                {% if clients_not_coming|length > 3 %}
+                <span class="chip" style="color: var(--text-muted); font-style: italic;">
+                    +{{ clients_not_coming|length - 3 }}
+                </span>
                 {% endif %}
             </div>
         </div>
     </div>
     {% endif %}
 
-    {% if widgets['total_clients'] %}
-    <div class="col-md-6 col-xl-3">
-        <div class="card shadow-sm h-100 border-primary">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Total Clients</h5>
-            </div>
-            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                {% if total_clients %}
-                    <div class="display-3 fw-bold text-primary mb-2">{{ total_clients }}</div>
-                    <p class="text-muted mb-0">inscrits à ce jour</p>
-                {% else %}
-                    <p class="text-muted">Aucun inscrit</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if widgets['seances_month'] %}
-    <div class="col-md-6 col-xl-3">
-        <div class="card shadow-sm h-100 border-success">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">Activité</h5>
-            </div>
-            <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                {% if number_seances_month %}
-                    <div class="display-3 fw-bold text-success mb-2">{{ number_seances_month }}</div>
-                    <p class="text-muted mb-0">cours donnés ce mois</p>
-                {% else %}
-                    <p class="text-muted">Aucun cours donné ce mois-ci</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
-<!-- Modal pour ajouter des séances (clients avec solde à zéro) -->
+{# ==========================================================
+   Row 3 — Widgets graphiques
+   ========================================================== #}
+<div class="row g-3 mt-1">
+
+    {# G1 — Évolution des achats (bar chart 6 mois) #}
+    {% if widgets['evolution_achats'] and evolution_achats %}
+    <div class="col-md-6 col-xl-4">
+        <div class="widget widget-graph">
+            <div class="widget-head">
+                <span>Séances vendues</span>
+                <div class="widget-icon" style="background: var(--brand-tint); color: var(--brand-dark);">
+                    <i class="fas fa-shopping-basket"></i>
+                </div>
+            </div>
+            {% set max_a = evolution_achats | map(attribute='value') | max %}
+            {% set max_a = max_a if max_a > 0 else 1 %}
+            <div style="flex: 1; display: flex; align-items: flex-end; padding-top: 8px;">
+                <svg viewBox="0 0 240 100" width="100%" height="100" preserveAspectRatio="none" style="max-height: 100px;">
+                    {% for point in evolution_achats %}
+                        {% set bar_h = (point.value / max_a * 80)|round(1) %}
+                        {% set x = loop.index0 * (240 / evolution_achats|length) + 4 %}
+                        {% set bar_w = (240 / evolution_achats|length) - 8 %}
+                        <rect class="bar-chart-bar"
+                              x="{{ x }}" y="{{ 90 - bar_h }}"
+                              width="{{ bar_w }}" height="{{ bar_h if bar_h > 0 else 1 }}"
+                              fill="var(--brand)" rx="3" />
+                        <text x="{{ x + bar_w/2 }}" y="98"
+                              font-size="7" text-anchor="middle" fill="#767876"
+                              font-family="Manrope, sans-serif" font-weight="600">
+                            {{ point.label }}
+                        </text>
+                        {% if point.value > 0 %}
+                        <text x="{{ x + bar_w/2 }}" y="{{ 88 - bar_h }}"
+                              font-size="8" text-anchor="middle" fill="#1A1F1D"
+                              font-family="Manrope, sans-serif" font-weight="700">
+                            {{ point.value }}
+                        </text>
+                        {% endif %}
+                    {% endfor %}
+                </svg>
+            </div>
+            <div class="widget-caption" style="margin-top: 6px;">
+                Total sur 6 mois : <strong style="color: var(--text); font-weight: 700;">
+                {{ evolution_achats | sum(attribute='value') }}
+                </strong> séances vendues
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# G2 — Évolution du nb de clients (sparkline area 12 mois) #}
+    {% if widgets['evolution_clients'] and evolution_clients %}
+    <div class="col-md-6 col-xl-4">
+        <div class="widget widget-graph">
+            <div class="widget-head">
+                <span>Évolution clients</span>
+                <div class="widget-icon" style="background: var(--sage-tint); color: var(--sage);">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+            {% set max_c = evolution_clients | map(attribute='value') | max %}
+            {% set max_c = max_c if max_c > 0 else 1 %}
+            {% set n = evolution_clients|length %}
+            {% set step = 240 / (n - 1) if n > 1 else 240 %}
+            <div style="flex: 1; display: flex; align-items: flex-end; padding-top: 8px;">
+                <svg viewBox="0 0 240 100" width="100%" height="100" preserveAspectRatio="none" style="max-height: 100px;">
+                    {# Area fill #}
+                    <path d="M 0 90
+                        {%- for point in evolution_clients -%}
+                        {%- set x = loop.index0 * step -%}
+                        {%- set y = 90 - (point.value / max_c * 75) -%}
+                         L {{ x|round(1) }} {{ y|round(1) }}
+                        {%- endfor -%}
+                        L 240 90 Z"
+                        fill="var(--brand-tint)" stroke="none" opacity="0.6" />
+
+                    {# Line #}
+                    <polyline
+                        points="{% for point in evolution_clients %}{{ (loop.index0 * step)|round(1) }},{{ (90 - point.value / max_c * 75)|round(1) }} {% endfor %}"
+                        fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+
+                    {# Points #}
+                    {% for point in evolution_clients %}
+                        <circle cx="{{ (loop.index0 * step)|round(1) }}"
+                                cy="{{ (90 - point.value / max_c * 75)|round(1) }}"
+                                r="{% if loop.last %}3{% else %}2{% endif %}"
+                                fill="var(--brand)" />
+                    {% endfor %}
+
+                    {# Dernier label #}
+                    {% set last = evolution_clients[-1] %}
+                    <text x="238" y="{{ (85 - last.value / max_c * 75)|round(1) }}"
+                          font-size="10" text-anchor="end" fill="#1A1F1D"
+                          font-family="Manrope, sans-serif" font-weight="700">
+                        {{ last.value }}
+                    </text>
+                </svg>
+            </div>
+            <div class="widget-caption" style="margin-top: 6px;">
+                <strong style="color: var(--text); font-weight: 700;">{{ evolution_clients[-1].value }}</strong> clients à ce jour
+                {% if evolution_clients|length >= 12 %}
+                    · {{ evolution_clients[-1].value - evolution_clients[0].value }} de plus qu'il y a un an
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# G3 — Présents vs Inscrits par créneau #}
+    {% if widgets['presents_vs_inscrits'] and presents_vs_inscrits %}
+    <div class="col-md-12 col-xl-4">
+        <div class="widget widget-graph">
+            <div class="widget-head">
+                <span>Présents vs Inscrits</span>
+                <div class="widget-icon" style="background: var(--brand-tint); color: var(--brand-dark);">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+            <div style="flex: 1;">
+                {% for row in presents_vs_inscrits %}
+                    {% set max_val = row.nb_inscrits if row.nb_inscrits > 0 else 1 %}
+                    {% set pct_ins = 100 %}
+                    {% set pct_pres = (row.nb_presents_avg / max_val * 100)|round(1) %}
+                    {% set taux_class = 'high' if row.taux >= 75 else ('mid' if row.taux >= 50 else 'low') %}
+                    <div class="pvi-row">
+                        <div class="pvi-label">
+                            {{ row.type }}
+                            <small>{{ row.jour }} {{ row.heure }}</small>
+                        </div>
+                        <div class="pvi-bars">
+                            <div class="pvi-bar">
+                                <div class="pvi-bar-fill inscrits" style="width: {{ pct_ins }}%;"></div>
+                            </div>
+                            <div class="pvi-bar">
+                                <div class="pvi-bar-fill presents" style="width: {{ pct_pres }}%;"></div>
+                            </div>
+                            <div class="pvi-bar-label">
+                                <span>{{ row.nb_inscrits }} inscrit{% if row.nb_inscrits > 1 %}s{% endif %}</span>
+                                <span>{{ row.nb_presents_avg }} présent{% if row.nb_presents_avg > 1 %}s{% endif %} (moy.)</span>
+                            </div>
+                        </div>
+                        <div class="pvi-taux {{ taux_class }}">{{ row.taux }}%</div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="widget-caption" style="margin-top: 6px;">
+                Moyenne sur les <strong style="color: var(--text); font-weight: 700;">4 dernières semaines</strong>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{# ==========================================================
+   Modales : ajout séances / régularisation
+   ========================================================== #}
+
+<!-- Modale personnaliser les widgets -->
+<div class="modal fade" id="modalWidgetsConfig" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-pen-to-square" style="color: var(--brand); margin-right: 6px;"></i>
+          Personnaliser les widgets
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+          Cochez les widgets à afficher sur votre tableau de bord.
+          Sauvegardé pour votre session.
+        </p>
+        {# Le form n'est PAS dans modal-body (sinon submit bug) : on utilise form="..." sur le bouton du footer #}
+        <form action="/save_widgets_config" method="POST" id="formWidgetsConfig"
+              style="display: flex; flex-direction: column; gap: 8px;">
+          {% for key, (label, description) in widget_labels.items() %}
+          <label class="d-flex align-items-start gap-3 p-3 rounded"
+                 style="background: var(--surface-alt); cursor: pointer; border: 1px solid var(--border);">
+              <input type="checkbox" class="form-check-input mt-1" name="{{ key }}" id="w_{{ key }}"
+                     {% if widgets[key] %}checked{% endif %}>
+              <div style="flex: 1;">
+                  <div style="font-weight: 600; color: var(--text); font-size: 14px;">{{ label }}</div>
+                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ description }}</div>
+              </div>
+          </label>
+          {% endfor %}
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" form="formWidgetsConfig" class="btn btn-brand">
+          <i class="fas fa-check"></i>
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="modalAjoutSeances" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <form action="/ajout_seances_rapide" method="POST">
-          
-        <div class="modal-header bg-warning text-white">
+        <div class="modal-header">
           <h5 class="modal-title">Ajouter des séances</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        
         <div class="modal-body">
-          
-            <div class="mb-4 text-center">
-                    <p class="text-center">Ajout de séances pour :</p>
-                    <h3 id="modalNomClientAjout" class="text-warning fw-bold mb-0"></h3>
-            </div>
-            
-            <input type="hidden" name="client_id" id="inputIdClientAjout">
-            <input type="hidden" name="origine" value="index">
-
-            <hr>
-
-            <div class="mb-3">
-                <label class="form-label">Nombre de séances à ajouter</label>
-                <input type="number" class="form-control form-control-lg text-center" 
-                    name="seances_ajoutees" value="5" min="1" required>
-            </div>
+          <div class="mb-4 text-center">
+            <p class="text-center" style="color: var(--text-muted); margin-bottom: 6px;">Ajout de séances pour :</p>
+            <h3 id="modalNomClientAjout" class="text-warning fw-bold mb-0"></h3>
+          </div>
+          <input type="hidden" name="client_id" id="inputIdClientAjout">
+          <input type="hidden" name="origine" value="index">
+          <hr>
+          <div class="mb-3">
+            <label class="form-label">Nombre de séances à ajouter</label>
+            <input type="number" class="form-control form-control-lg text-center" name="seances_ajoutees" value="5" min="1" required>
+          </div>
         </div>
-
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-            <button type="submit" class="btn btn-warning">Valider</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning">Valider</button>
         </div>
-
       </form>
     </div>
   </div>
 </div>
 
-<!-- Modal pour régulariser un impayé (clients avec solde négatif) -->
 <div class="modal fade" id="modalRegulariser" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <form action="/ajout_seances_rapide" method="POST">
-          
-        <div class="modal-header bg-danger text-white">
+        <div class="modal-header">
           <h5 class="modal-title">Régulariser le solde</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        
         <div class="modal-body">
-          
-            <div class="mb-4 text-center">
-                <p class="text-center">Régularisation pour :</p>
-                <h3 id="modalNomClientReg" class="text-danger fw-bold mb-0"></h3>
-            </div>
-            
-            <input type="hidden" name="client_id" id="inputIdClientReg">
-            <input type="hidden" name="origine" value="index">
-            
-            <hr>
-
-            <div class="mb-3">
-                <label class="form-label">Nombre de séances à ajouter</label>
-                <input type="number" class="form-control form-control-lg text-center" 
-                       name="seances_ajoutees" value="5" min="1" required>
-            </div>
+          <div class="mb-4 text-center">
+            <p class="text-center" style="color: var(--text-muted); margin-bottom: 6px;">Régularisation pour :</p>
+            <h3 id="modalNomClientReg" class="text-danger fw-bold mb-0"></h3>
+          </div>
+          <input type="hidden" name="client_id" id="inputIdClientReg">
+          <input type="hidden" name="origine" value="index">
+          <hr>
+          <div class="mb-3">
+            <label class="form-label">Nombre de séances à ajouter</label>
+            <input type="number" class="form-control form-control-lg text-center" name="seances_ajoutees" value="5" min="1" required>
+          </div>
         </div>
-
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
           <button type="submit" class="btn btn-danger">Valider</button>
         </div>
-
       </form>
     </div>
   </div>
@@ -264,40 +619,24 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Quand on clique sur un bouton "Régulariser" (clients avec solde négatif)
         $(document).on('click', '.btn-regulariser', function () {
-            
-            // 1. On récupère les infos du bouton
             var id = $(this).data('id');
             var prenom = $(this).data('prenom');
             var nom = $(this).data('nom');
-
-            // 2. On remplit la modale rouge
             $('#inputIdClientReg').val(id);
             $('#modalNomClientReg').text(prenom + ' ' + nom);
-
-            // 3. On affiche la modale
-            var myModal = new bootstrap.Modal(document.getElementById('modalRegulariser'));
-            myModal.show();
+            new bootstrap.Modal(document.getElementById('modalRegulariser')).show();
         });
-        
-        // Quand on clique sur un bouton "Ajouter des séances" (clients avec solde à zéro)
+
         $(document).on('click', '.btn-ajout-seances', function () {
-            
-            // 1. On récupère les infos du bouton
             var id = $(this).data('id');
             var prenom = $(this).data('prenom');
             var nom = $(this).data('nom');
-
-            // 2. On remplit la modale verte
             $('#inputIdClientAjout').val(id);
             $('#modalNomClientAjout').text(prenom + ' ' + nom);
-
-            // 3. On affiche la modale
-            var myModal = new bootstrap.Modal(document.getElementById('modalAjoutSeances'));
-            myModal.show();
+            new bootstrap.Modal(document.getElementById('modalAjoutSeances')).show();
         });
     });
 </script>
 
-{% endblock %} <!-- Fin du bloc de contenu spécifique à cette page -->
+{% endblock %}

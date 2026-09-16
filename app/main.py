@@ -13,7 +13,24 @@ import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, make_response, session
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash
-from app.app_lib import client_not_comming, get_db_connection, get_best_clients, get_client_most_remaining, get_number_seances, get_negative_seances_clients, get_zero_clients
+from app.app_lib import (
+    client_not_comming,
+    get_db_connection,
+    get_best_clients,
+    get_client_most_remaining,
+    get_number_seances,
+    get_negative_seances_clients,
+    get_zero_clients,
+    # widgets V2
+    get_prochain_cours,
+    get_apercu_jour,
+    get_nouveaux_clients_mois,
+    get_fideles,
+    get_evolution_achats,
+    get_evolution_clients,
+    get_presents_vs_inscrits,
+    get_suggestions_inscription,
+)
 from dotenv import load_dotenv
 import pytz
 import os
@@ -56,6 +73,44 @@ paris_tz = pytz.timezone('Europe/Paris')
 # --- AUTHENTIFICATION ---
 # pages accessibles SANS être connecté (la borne reste publique pour les clients)
 PUBLIC_ENDPOINTS = {'login', 'borne', 'borne_succes', 'static'}
+
+
+# === WIDGETS DASHBOARD ===
+# Config par défaut (tous actifs) + libellés user-friendly pour la modale de personnalisation.
+# L'utilisateur peut activer/désactiver individuellement via le bouton "Personnaliser".
+DEFAULT_WIDGETS_CONFIG = {
+    'negative_balance':          True,
+    'zero_balance':              True,
+    'suggestions_inscription':   True,
+    'prochain_cours':            True,
+    'apercu_jour':               True,
+    'best_client_month':         True,
+    'nouveaux_clients':          True,
+    'total_clients':             True,
+    'fideles':                   True,
+    'most_remaining':            True,
+    'client_not_comming':        True,
+    'evolution_achats':          True,
+    'evolution_clients':         True,
+    'presents_vs_inscrits':      True,
+}
+
+WIDGET_LABELS = {
+    'negative_balance':          ("Alertes — soldes négatifs", "Clients dont le solde est négatif (à régulariser)"),
+    'zero_balance':              ("Alertes — soldes à zéro", "Clients à recharger"),
+    'suggestions_inscription':   ("Suggestions d'inscription", "Clients venant régulièrement sans être inscrits (à un créneau)"),
+    'prochain_cours':            ("Prochain cours", "Le prochain cours de la journée"),
+    'apercu_jour':               ("Aperçu du jour", "Nombre de cours restants aujourd'hui + inscrits"),
+    'best_client_month':         ("Meilleur client du mois", "Client ayant fait le plus de séances ce mois"),
+    'nouveaux_clients':          ("Nouveaux clients", "Nombre d'inscriptions ce mois"),
+    'total_clients':             ("Total clients", "Nombre total de clients inscrits"),
+    'fideles':                   ("Clients fidèles", "Clients ayant fait plus de 20 séances"),
+    'most_remaining':            ("Plus grand solde", "Client avec le plus de séances restantes"),
+    'client_not_comming':        ("Clients absents 30 jours", "Clients à relancer"),
+    'evolution_achats':          ("📊 Séances vendues (6 mois)", "Bar chart des séances vendues"),
+    'evolution_clients':         ("📈 Évolution clients (12 mois)", "Sparkline du nb total de clients"),
+    'presents_vs_inscrits':      ("📉 Présents vs Inscrits", "Comparaison par créneau"),
+}
 
 
 @app.context_processor
@@ -154,6 +209,19 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/save_widgets_config', methods=['POST'])
+def save_widgets_config():
+    """
+    Sauvegarde en session la configuration des widgets choisie via la modale
+    "Personnaliser" du tableau de bord. Un widget est activé si sa checkbox
+    est cochée (présente dans le form), sinon désactivé.
+    """
+    new_config = {key: (key in request.form) for key in DEFAULT_WIDGETS_CONFIG}
+    session['widgets_config'] = new_config
+    session.modified = True
+    return redirect(url_for('index'))
+
+
 @app.route('/')
 def index():
     """
@@ -163,65 +231,62 @@ def index():
     Returns:
         str: rendu HTML de la page d'accueil.
     """
-    # connexion à la base de données
     connection = get_db_connection()
 
-    # CONFIGURATION DES WIDGETS
-    widgets_config = {
-        'negative_balance': True,
-        'zero_balance': True,
-        'best_client_month': True,
-        'best_client_all_time': False,
-        'most_remaining': True,
-        'total_clients': True,
-        'seances_month': True,
-        'client_not_comming' : True
-    }
+    # === CONFIGURATION DES WIDGETS ===
+    # Config par défaut si l'utilisateur n'a rien personnalisé. Persistée en session
+    # via /save_widgets_config (bouton "Personnaliser" sur la dashboard).
+    widgets_config = session.get('widgets_config', DEFAULT_WIDGETS_CONFIG.copy())
 
-    # initialisation des données des widgets
-    negative_clients = []
-    best_clients_month = None
-    best_clients_all_time = None
-    client_most_remaining = None
-    total_clients = None
-    number_seances_month = None
-    clients_not_coming = None
+    now = datetime.now(paris_tz)
+    actual_date = now.strftime('%Y-%m-%d')
+    first_day_of_month = actual_date[:8] + '01'
 
-    # récupération des variables
-    actual_date = datetime.now(paris_tz).strftime('%Y-%m-%d')
-    first_day_of_month = actual_date[:8] + '01' # premier jour du mois courant
+    # === COLLECTE DES DONNÉES ===
 
-    # création des données pour les widgets
-    if widgets_config['negative_balance']:
-        negative_clients = get_negative_seances_clients()
-    if widgets_config['zero_balance']:
-        zero_clients = get_zero_clients()
-    if widgets_config['best_client_month']:
-        best_clients_month = get_best_clients(first_day_of_month, actual_date) # du mois courant
-    if widgets_config['best_client_all_time']:
-        best_clients_all_time = get_best_clients('2000-01-01', actual_date) # depuis le début
-    if widgets_config['most_remaining']:
-        client_most_remaining = get_client_most_remaining()
-    if widgets_config['total_clients']:
-        total_clients = connection.execute('SELECT COUNT(*) AS total FROM clients').fetchone()['total']
-    if widgets_config['seances_month']:
-        number_seances_month = get_number_seances(first_day_of_month, actual_date) # du mois courant
-    if widgets_config['client_not_comming']:
-        clients_not_coming = client_not_comming((datetime.now(paris_tz) - timedelta(days=30)).strftime('%Y-%m-%d'), actual_date)
+    # Alertes
+    negative_clients = get_negative_seances_clients() if widgets_config['negative_balance'] else []
+    zero_clients = get_zero_clients() if widgets_config['zero_balance'] else []
 
-    # fermeture de la connexion à la base de données
+    # Quick stats non-graphiques
+    prochain_cours = get_prochain_cours(now) if widgets_config['prochain_cours'] else None
+    apercu_jour = get_apercu_jour(now) if widgets_config['apercu_jour'] else None
+    best_clients_month = get_best_clients(first_day_of_month, actual_date) if widgets_config['best_client_month'] else None
+    nouveaux_clients = get_nouveaux_clients_mois(first_day_of_month) if widgets_config['nouveaux_clients'] else None
+    total_clients = connection.execute('SELECT COUNT(*) AS total FROM clients').fetchone()['total'] if widgets_config['total_clients'] else None
+    fideles = get_fideles(seuil=20) if widgets_config['fideles'] else None
+    client_most_remaining = get_client_most_remaining() if widgets_config['most_remaining'] else None
+    clients_not_coming = client_not_comming(
+        (now - timedelta(days=30)).strftime('%Y-%m-%d'), actual_date
+    ) if widgets_config['client_not_comming'] else None
+
+    # Graphs
+    evolution_achats = get_evolution_achats(now, n_months=6) if widgets_config['evolution_achats'] else None
+    evolution_clients = get_evolution_clients(now, n_months=12) if widgets_config['evolution_clients'] else None
+    presents_vs_inscrits = get_presents_vs_inscrits(now, n_weeks=4, top=6) if widgets_config['presents_vs_inscrits'] else None
+
+    # Suggestions
+    suggestions_inscription = get_suggestions_inscription(now, min_consecutive=4) if widgets_config.get('suggestions_inscription') else None
+
     connection.close()
 
-    # envoi des données à la page HTML index.html
     return render_template('index.html',
                             widgets=widgets_config,
+                            widget_labels=WIDGET_LABELS,
                             negative_clients=negative_clients,
                             zero_clients=zero_clients,
+                            prochain_cours=prochain_cours,
+                            apercu_jour=apercu_jour,
                             best_clients_month=best_clients_month,
-                            client_most_remaining=client_most_remaining,
+                            nouveaux_clients=nouveaux_clients,
                             total_clients=total_clients,
-                            number_seances_month=number_seances_month,
-                            clients_not_coming=clients_not_coming
+                            fideles=fideles,
+                            client_most_remaining=client_most_remaining,
+                            clients_not_coming=clients_not_coming,
+                            evolution_achats=evolution_achats,
+                            evolution_clients=evolution_clients,
+                            presents_vs_inscrits=presents_vs_inscrits,
+                            suggestions_inscription=suggestions_inscription,
                            )
 
 
@@ -337,7 +402,7 @@ def ajout_client():
 
         abonnement = 1 if request.form.get('abonnement') else 0
 
-        creneau = request.form.get('creneau') # pour les habitudes (optionnel car on pourra le remplir par la suite)
+        creneau = request.form.get('creneau') # pour les inscriptions (optionnel car on pourra le remplir par la suite)
 
         # vérification si le client existe déjà
         existing_client = connection.execute('SELECT * FROM clients WHERE prenom = ? AND nom = ?', (prenom, nom)).fetchone()
@@ -358,9 +423,9 @@ def ajout_client():
             # ajout dans historique seances
             connection.execute('INSERT INTO historique_seances (client_id, action, nombre, date_heure) VALUES (?, ?, ?, ?)',(nouveau_client_id, 'NEW_ACCOUNT', seances_initiales, current_time))
 
-            # ajout des habitudes si un créneau a été sélectionné
+            # ajout des inscriptions si un créneau a été sélectionné
             if creneau:
-                connection.execute('INSERT INTO habitudes (client_id, creneau_id) VALUES (?, ?)', (nouveau_client_id, creneau))
+                connection.execute('INSERT INTO inscriptions (client_id, creneau_id) VALUES (?, ?)', (nouveau_client_id, creneau))
 
             # commit des changements
             connection.commit()
@@ -527,10 +592,10 @@ def fiche_client(client_id):
     # récupération des informations du client
     client = connection.execute('SELECT * FROM clients WHERE id = ?', (client_id,)).fetchone()
 
-    # récupération des habitudes du client
-    habitudes = connection.execute('''
+    # récupération des inscriptions du client
+    inscriptions = connection.execute('''
         SELECT s.id, s.jour_semaine, s.heure_debut, s.type_seance
-        FROM habitudes h
+        FROM inscriptions h
         JOIN semaine_type s ON h.creneau_id = s.id
         WHERE h.client_id = ?
     ''', (client_id,)).fetchall()
@@ -561,7 +626,7 @@ def fiche_client(client_id):
     # envoi des données à la page HTML fiche_client.html
     return render_template('fiche_client.html',
                             client=client,
-                            habitudes=habitudes,
+                            inscriptions=inscriptions,
                             historique=historique,
                             creneaux=creneaux,
                             jours=jours_semaine)
@@ -598,62 +663,84 @@ def planning():
 
     connection = get_db_connection()
 
-    # 1. Squelette planning
-    planning_squelett = connection.execute('SELECT * FROM semaine_type WHERE actif = 1 ORDER BY heure_debut').fetchall()
+    # 1. Squelette planning (créneaux récurrents)
+    planning_squelett = connection.execute(
+        'SELECT * FROM semaine_type WHERE actif = 1 ORDER BY heure_debut'
+    ).fetchall()
 
-    # 2. Habitudes (Qui est censé venir ?)
-    habitudes_data = connection.execute('''
-        SELECT h.creneau_id, c.id as client_id, c.prenom, c.nom, c.seances_restantes
-        FROM habitudes h
-        JOIN clients c ON h.client_id = c.id
+    # 2. Inscriptions (qui est censé venir chaque semaine ?)
+    inscriptions_data = connection.execute('''
+        SELECT i.creneau_id, c.id as client_id, c.prenom, c.nom, c.seances_restantes
+        FROM inscriptions i
+        JOIN clients c ON i.client_id = c.id
     ''').fetchall()
 
-    # 3. Historique de la semaine (Qui est DÉJÀ venu ?)
-    # On cherche les CHECK-IN ou PRESENCE_VALIDEE dans la plage de la semaine affichée
+    # 3. Prévisions de la semaine (qui a confirmé pour un jour précis ?)
+    previsions_data = connection.execute('''
+        SELECT p.creneau_id, p.date_seance, c.id as client_id, c.prenom, c.nom, c.seances_restantes
+        FROM previsions p
+        JOIN clients c ON p.client_id = c.id
+        WHERE p.date_seance >= ? AND p.date_seance <= ?
+    ''', (start_sql, end_of_week.strftime('%Y-%m-%d'))).fetchall()
+
+    # 4. Check-ins de la semaine (avec noms/prénoms pour repérer les "surprises")
     presence_data = connection.execute('''
-        SELECT client_id, date_heure
-        FROM historique_seances
-        WHERE date_heure >= ? AND date_heure < ?
-        AND action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+        SELECT h.client_id, h.date_heure, c.prenom, c.nom, c.seances_restantes
+        FROM historique_seances h
+        JOIN clients c ON h.client_id = c.id
+        WHERE h.date_heure >= ? AND h.date_heure < ?
+          AND h.action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
     ''', (start_sql, end_sql)).fetchall()
 
     connection.close()
 
     # --- TRAITEMENT DES DONNÉES EN PYTHON ---
 
-    # A. Organiser les habitudes par créneau
-    # Dict: { creneau_id : [ {id: 1, nom: "Lancelot D"}, ... ] }
+    # A. Inscriptions organisées par créneau : { creneau_id : [ {id, nom, solde}, ... ] }
     clients_par_creneau = {}
-    for h in habitudes_data:
-        cid = h['creneau_id']
-        if cid not in clients_par_creneau:
-            clients_par_creneau[cid] = []
-        clients_par_creneau[cid].append({
-            'id': h['client_id'],
-            'nom': f"{h['prenom']} {h['nom']}",
-            'solde': h['seances_restantes']
+    for i in inscriptions_data:
+        cid = i['creneau_id']
+        clients_par_creneau.setdefault(cid, []).append({
+            'id': i['client_id'],
+            'prenom': i['prenom'],
+            'nom_complet': f"{i['prenom']} {i['nom']}",
+            'solde': i['seances_restantes'],
         })
 
-    # B. Créer un set de présence pour vérification rapide
-    # Format de la clé : "ID_CLIENT|YYYY-MM-DD HH:MM" (On compare à la minute près le début du cours)
-    # Note : Dans la route 'presence', le check-in insère datetime.now().
-    # Si tu veux une correspondance parfaite, il faudra s'assurer que le check-in soit tolerant ou utilise l'heure du cours.
-    # ICI : On va simplifier -> Si le client a un check-in ce jour là dans une plage de +/- 2h autour du cours, ou pile à l'heure.
-    # Pour ton besoin strict "durant le créneau", on va faire une logique simple : Check sur la DATE et l'HEURE approximative.
+    # B. Prévisions organisées par (creneau_id, date_seance) : set d'ids clients
+    prevus_par_seance = {}
+    for p in previsions_data:
+        key = (p['creneau_id'], p['date_seance'])
+        prevus_par_seance.setdefault(key, set()).add(p['client_id'])
 
-    # Pour simplifier ton code actuel, supposons que 'PRESENCE_VALIDEE' met l'heure pile (c'est le cas).
-    # Pour les 'CHECK-IN' faits à la borne, ils ont l'heure réelle.
-    # On va stocker : "client_id|YYYY-MM-DD" -> Liste des heures pointées
+    # C. Check-ins organisés par (client_id, YYYY-MM-DD) → liste de (heure, prenom, nom, solde)
     presences_map = {}
     for p in presence_data:
-        date_str = p['date_heure'].replace('T', ' ')  # Gérer le format ISO avec T
+        date_str = p['date_heure'].replace('T', ' ').split('.')[0]
         p_date = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
-        key = f"{p['client_id']}|{p_date.strftime('%Y-%m-%d')}" # Clé = ID + Jour
-        if key not in presences_map:
-            presences_map[key] = []
-        presences_map[key].append(p_date.strftime('%H:%M')) # On stocke l'heure du pointage
+        key = f"{p['client_id']}|{p_date.strftime('%Y-%m-%d')}"
+        presences_map.setdefault(key, []).append({
+            'heure': p_date.strftime('%H:%M'),
+            'prenom': p['prenom'],
+            'nom_complet': f"{p['prenom']} {p['nom']}",
+            'solde': p['seances_restantes'],
+        })
 
-    # ... (Constantes HEURE_DEBUT, etc. inchangées) ...
+    # D. Aussi : par (YYYY-MM-DD, heure_range) → tous les checkins ce jour dans cette plage,
+    # utilisé pour repérer les "clients surprise" (checkin mais pas inscrit)
+    checkins_by_day = {}  # { 'YYYY-MM-DD' : [ {client_id, heure, ...}, ... ] }
+    for p in presence_data:
+        date_str = p['date_heure'].replace('T', ' ').split('.')[0]
+        p_date = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+        d = p_date.strftime('%Y-%m-%d')
+        checkins_by_day.setdefault(d, []).append({
+            'client_id': p['client_id'],
+            'heure_min': p_date.hour * 60 + p_date.minute,
+            'prenom': p['prenom'],
+            'nom_complet': f"{p['prenom']} {p['nom']}",
+            'solde': p['seances_restantes'],
+        })
+
     HEURE_DEBUT = 9
     HEURE_FIN = 21
     DUREE_TOTAL_MINUTES = (HEURE_FIN - HEURE_DEBUT) * 60
@@ -661,77 +748,91 @@ def planning():
 
     semaine_fr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
     planning = []
+    now_paris = datetime.now(paris_tz)
 
     for jour in range(5):
         jour_date = start_of_week + timedelta(days=jour)
-        jour_date_str = jour_date.strftime('%Y-%m-%d') # Ex: 2026-02-06
+        jour_date_str = jour_date.strftime('%Y-%m-%d')
 
         creneaux_jour = [c for c in planning_squelett if c['jour_semaine'] == jour]
         creneaux_jour_processed = []
 
         for creneau in creneaux_jour:
-            # Calculs position (inchangé)
-            start_time = datetime.strptime(creneau['heure_debut'], '%H:%M')
-            h_debut, m_debut = map(int, start_time.strftime('%H:%M').split(':'))
+            # Position du créneau dans la grille visuelle
+            h_debut, m_debut = map(int, creneau['heure_debut'].split(':'))
             min_from_begin = (h_debut - HEURE_DEBUT) * 60 + m_debut
             top_percent = (min_from_begin / DUREE_TOTAL_MINUTES) * 100
             height_percent = (creneau['duree'] / DUREE_TOTAL_MINUTES) * 100
+            course_start_min = h_debut * 60 + m_debut
+            course_end_min = course_start_min + creneau['duree']
 
-            # --- LOGIQUE PRÉSENCE ---
-            # On récupère les habitués de ce créneau
+            # Ce créneau est-il passé, en cours, ou à venir ?
+            course_dt_naive = datetime.combine(jour_date.date(), datetime.strptime(creneau['heure_debut'], '%H:%M').time())
+            course_dt = paris_tz.localize(course_dt_naive)
+            is_past = course_dt <= now_paris
+
+            # Inscrits de ce créneau
             raw_clients = clients_par_creneau.get(creneau['id'], [])
+            inscrits_ids = {cl['id'] for cl in raw_clients}
+            prevus_ids = prevus_par_seance.get((creneau['id'], jour_date_str), set())
+
             final_clients = []
-
             for cl in raw_clients:
+                # Est-il présent ? Check dans la plage horaire
                 is_present = False
-                # Clé de recherche : Ce client, ce jour là
                 lookup_key = f"{cl['id']}|{jour_date_str}"
-
                 if lookup_key in presences_map:
-                    # Le client a pointé ce jour là. Est-ce pendant CE cours ?
-                    # On regarde s'il y a un pointage proche de l'heure de début (ex: check-in réel)
-                    # OU si c'est pile l'heure de début (bouton manuel)
-                    heures_pointages = presences_map[lookup_key]
-                    cours_h_debut = creneau['heure_debut'] # "10:00"
-
-                    # Logique : Si on trouve l'heure exacte (Marquage manuel) OU heure proche (Check-in borne)
-                    # Pour l'instant, vérifions simple : Si le bouton manuel met l'heure pile, ça matchera ici.
-                    # Pour les check-ins bornes, il faudrait convertir en minutes et voir si écart < 60min.
-                    # Simplifions : Si une action existe ce jour là vers cette heure.
-                    # Pour ton code actuel, je vais check si l'heure du cours est dans la liste (cas bouton manuel)
-                    # ou si on a un checkin.
-
-                    # Amélioration : On considère présent si un pointage existe entre heure_debut et heure_fin
-                    course_start_min = h_debut * 60 + m_debut
-                    course_end_min = course_start_min + creneau['duree']
-
-                    for hp in heures_pointages:
-                        hp_h, hp_m = map(int, hp.split(':'))
+                    for hp in presences_map[lookup_key]:
+                        hp_h, hp_m = map(int, hp['heure'].split(':'))
                         pointage_min = hp_h * 60 + hp_m
-                        # Si le pointage est entre le début (avance de 30 minutes) et la fin du cours
-                        if (course_start_min - 30) <= pointage_min <= course_end_min: # le -30min permet de prendre en compte les check-ins faits un peu avant le début du cours
+                        if (course_start_min - 30) <= pointage_min <= course_end_min:
                             is_present = True
                             break
 
+                is_prevu = cl['id'] in prevus_ids
+                # No-show = prévu mais pas venu ET cours passé
+                is_no_show = is_prevu and (not is_present) and is_past
+
                 final_clients.append({
                     'id': cl['id'],
-                    'nom': cl['nom'],
+                    'nom': cl['nom_complet'],
                     'present': is_present,
-                    'solde': cl['solde']
+                    'prevu': is_prevu,
+                    'no_show': is_no_show,
+                    'solde': cl['solde'],
                 })
+
+            # "Surprise" : clients checkés-in dans la plage mais PAS inscrits
+            surprises = []
+            surprises_seen = set()
+            for ck in checkins_by_day.get(jour_date_str, []):
+                if ck['client_id'] in inscrits_ids or ck['client_id'] in surprises_seen:
+                    continue
+                if (course_start_min - 30) <= ck['heure_min'] <= course_end_min:
+                    surprises.append({
+                        'id': ck['client_id'],
+                        'nom': ck['nom_complet'],
+                        'solde': ck['solde'],
+                    })
+                    surprises_seen.add(ck['client_id'])
+
+            # Tri : prévus en haut, puis inscrits normaux, puis surprises rendus après
+            final_clients.sort(key=lambda x: (not x['prevu'], x['nom']))
 
             creneaux_jour_processed.append({
                 'data': creneau,
                 'style': f"top: {top_percent}%; height: {height_percent}%;",
                 'clients': final_clients,
-                'date_reelle': jour_date_str # On passe la vraie date pour le formulaire
+                'surprises': surprises,
+                'is_past': is_past,
+                'date_reelle': jour_date_str,
             })
 
         planning.append({
             'nom': semaine_fr[jour],
             'date_courte': jour_date.strftime('%d/%m'),
             'is_today': jour_date.date() == today.date(),
-            'creneaux': creneaux_jour_processed
+            'creneaux': creneaux_jour_processed,
         })
 
     return render_template('planning.html',
@@ -740,6 +841,88 @@ def planning():
                            offset=offset,
                            heures=heure_affichage)
 
+
+
+@app.route('/inscrire_suggestion', methods=['POST'])
+def inscrire_suggestion():
+    """
+    Depuis le widget "Suggestions" du dashboard : inscrit d'un click un client
+    à un créneau (crée une entrée dans inscriptions).
+    """
+    client_id = int(request.form['client_id'])
+    creneau_id = int(request.form['creneau_id'])
+    connection = get_db_connection()
+    try:
+        connection.execute(
+            'INSERT INTO inscriptions (client_id, creneau_id) VALUES (?, ?)',
+            (client_id, creneau_id)
+        )
+        connection.commit()
+    except sqlite3.IntegrityError:
+        pass  # déjà inscrit, pas grave
+    finally:
+        connection.close()
+    return redirect(url_for('index'))
+
+
+@app.route('/marquer_prevu', methods=['POST'])
+def marquer_prevu():
+    """
+    Flagge un client comme "prévu" pour un cours à une date précise.
+    Refusé si la date/heure du cours est dans le passé.
+    Retourne JSON pour permettre un appel AJAX depuis la modale du planning.
+    """
+    from flask import jsonify
+
+    client_id = int(request.form['client_id'])
+    creneau_id = int(request.form['creneau_id'])
+    date_seance = request.form['date_seance']    # 'YYYY-MM-DD'
+    heure_seance = request.form['heure_seance']  # 'HH:MM'
+
+    # Vérifier que le cours n'est pas passé
+    try:
+        cours_dt = datetime.strptime(f"{date_seance} {heure_seance}", '%Y-%m-%d %H:%M')
+        cours_dt = paris_tz.localize(cours_dt)
+    except ValueError:
+        return jsonify({'ok': False, 'error': 'Date/heure invalide'}), 400
+
+    if cours_dt <= datetime.now(paris_tz):
+        return jsonify({'ok': False, 'error': 'Impossible de marquer un cours passé comme prévu'}), 400
+
+    connection = get_db_connection()
+    try:
+        connection.execute(
+            'INSERT INTO previsions (client_id, creneau_id, date_seance) VALUES (?, ?, ?)',
+            (client_id, creneau_id, date_seance)
+        )
+        connection.commit()
+        result = {'ok': True}
+    except sqlite3.IntegrityError:
+        # déjà prévu (UNIQUE constraint violée) — pas grave
+        result = {'ok': True, 'already': True}
+    finally:
+        connection.close()
+
+    return jsonify(result)
+
+
+@app.route('/annuler_prevu', methods=['POST'])
+def annuler_prevu():
+    """Retire le flag "prévu" pour un client à une date précise."""
+    from flask import jsonify
+
+    client_id = int(request.form['client_id'])
+    creneau_id = int(request.form['creneau_id'])
+    date_seance = request.form['date_seance']
+
+    connection = get_db_connection()
+    connection.execute(
+        'DELETE FROM previsions WHERE client_id = ? AND creneau_id = ? AND date_seance = ?',
+        (client_id, creneau_id, date_seance)
+    )
+    connection.commit()
+    connection.close()
+    return jsonify({'ok': True})
 
 
 @app.route('/marquer_presence', methods=['POST'])
@@ -794,12 +977,12 @@ def modif_inscriptions():
         client_id = int(request.form['client_id'])
         nouveaux_creneaux = request.form.getlist('creneaux')
 
-        # 1. On nettoie les anciennes habitudes
-        connection.execute('DELETE FROM habitudes WHERE client_id = ?', (client_id,))
+        # 1. On nettoie les anciennes inscriptions
+        connection.execute('DELETE FROM inscriptions WHERE client_id = ?', (client_id,))
 
         # 2. On ajoute les nouvelles
         for creneau_id in nouveaux_creneaux:
-            connection.execute('INSERT INTO habitudes (client_id, creneau_id) VALUES (?, ?)',
+            connection.execute('INSERT INTO inscriptions (client_id, creneau_id) VALUES (?, ?)',
                             (client_id, creneau_id))
 
         # commit des changements
@@ -862,7 +1045,7 @@ def supprimer_client():
     """
     Fonction exécutée lors de l'accès à la page '/supprimer_client'.
     Supprime définitivement un client ainsi que ses données liées
-    (habitudes et historique des séances).
+    (inscriptions et historique des séances).
     Args:
         None
     Returns:
@@ -876,7 +1059,7 @@ def supprimer_client():
 
     # suppression des données liées puis du client lui-même
     # (SQLite n'applique pas le ON DELETE CASCADE par défaut, on le fait manuellement)
-    connection.execute('DELETE FROM habitudes WHERE client_id = ?', (client_id,))
+    connection.execute('DELETE FROM inscriptions WHERE client_id = ?', (client_id,))
     connection.execute('DELETE FROM historique_seances WHERE client_id = ?', (client_id,))
     connection.execute('DELETE FROM clients WHERE id = ?', (client_id,))
 
