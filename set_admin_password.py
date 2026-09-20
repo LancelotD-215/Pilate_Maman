@@ -3,12 +3,12 @@
 author: @lancelot
 name : set_admin_password.py
 description : petit utilitaire pour générer un hash de mot de passe admin
-              au format attendu par app.py (Werkzeug pbkdf2:sha256).
+              au format attendu par l'application (Werkzeug pbkdf2:sha256).
 
 Usage :
     python set_admin_password.py
     # Saisir le mot de passe (masqué), puis copier la ligne obtenue
-    # dans app.py -> ADMIN_PASSWORD_HASH.
+    # dans le fichier .env (à la racine du projet).
 """
 
 from getpass import getpass
@@ -25,8 +25,8 @@ def main():
         print("❌ Les mots de passe ne correspondent pas, abandon.")
         return
 
-    print("\n[OK] Copier la ligne ci-dessous dans app.py :\n")
-    print(f'ADMIN_PASSWORD_HASH = "{generate_password_hash(pwd)}"\n')
+    print("\n[OK] Copier la ligne ci-dessous dans le fichier .env :\n")
+    print(f'ADMIN_PASSWORD_HASH={generate_password_hash(pwd)}\n')
 
 
 if __name__ == "__main__":

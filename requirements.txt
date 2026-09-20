@@ -10,6 +10,9 @@ python-dotenv==1.2.2
 # Gestion des fuseaux horaires (timezone Paris)
 pytz==2026.3.post1
 
+# Lecture de fichiers Excel (utilisé par import_synergie.py)
+openpyxl==3.1.5
+
 # Note: Les modules sqlite3, datetime et os font partie
 # de la bibliothèque standard Python et n'ont pas besoin d'être installés.
 # Werkzeug, Jinja2, MarkupSafe, itsdangerous, click, blinker sont installés
