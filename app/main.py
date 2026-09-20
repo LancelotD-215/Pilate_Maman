@@ -182,7 +182,7 @@ def login():
         remember = request.form.get('remember')  # case "Rester connecté"
 
         # vérification de l'identifiant et du mot de passe
-        if username.lower() == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
+        if username.lower() == ADMIN_USERNAME.lower() and check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['logged_in'] = True
             # "Rester connecté" => session persistante (cookie 30 jours), sinon session de navigation
             session.permanent = bool(remember)
