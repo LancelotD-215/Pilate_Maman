@@ -7,17 +7,19 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 </head>
 <body>
 
     <div class="login-scene">
         <div class="login-card">
             <div class="login-brand">
-                <div class="brand-dot">{{ site_name[:2] | upper }}</div>
-                <h1>{{ site_name }}</h1>
+                <img src="{{ url_for('static', filename='logo_lisa.png') }}"
+                     alt="{{ site_name }}"
+                     style="max-width: 240px; width: 100%; height: auto; margin-bottom: 4px;">
                 <p class="sub">Espace de gestion</p>
             </div>
 

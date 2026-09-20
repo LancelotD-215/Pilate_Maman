@@ -79,9 +79,7 @@ PUBLIC_ENDPOINTS = {'login', 'borne', 'borne_succes', 'static'}
 # Config par défaut (tous actifs) + libellés user-friendly pour la modale de personnalisation.
 # L'utilisateur peut activer/désactiver individuellement via le bouton "Personnaliser".
 DEFAULT_WIDGETS_CONFIG = {
-    'negative_balance':          True,
-    'zero_balance':              True,
-    'suggestions_inscription':   True,
+    # Quick stats (choisis dans le sélecteur "Personnaliser")
     'prochain_cours':            True,
     'apercu_jour':               True,
     'best_client_month':         True,
@@ -90,15 +88,17 @@ DEFAULT_WIDGETS_CONFIG = {
     'fideles':                   True,
     'most_remaining':            True,
     'client_not_comming':        True,
+    # Graphs (choisis dans le sélecteur "Personnaliser")
     'evolution_achats':          True,
     'evolution_clients':         True,
     'presents_vs_inscrits':      True,
 }
 
+# NOTE : les alertes (soldes négatifs, soldes à zéro, suggestions d'inscription)
+# ne sont PAS dans WIDGET_LABELS : elles s'affichent TOUJOURS quand il y a de
+# la data à alerter (ce sont des infos critiques, pas des widgets optionnels).
+
 WIDGET_LABELS = {
-    'negative_balance':          ("Alertes — soldes négatifs", "Clients dont le solde est négatif (à régulariser)"),
-    'zero_balance':              ("Alertes — soldes à zéro", "Clients à recharger"),
-    'suggestions_inscription':   ("Suggestions d'inscription", "Clients venant régulièrement sans être inscrits (à un créneau)"),
     'prochain_cours':            ("Prochain cours", "Le prochain cours de la journée"),
     'apercu_jour':               ("Aperçu du jour", "Nombre de cours restants aujourd'hui + inscrits"),
     'best_client_month':         ("Meilleur client du mois", "Client ayant fait le plus de séances ce mois"),
@@ -107,9 +107,9 @@ WIDGET_LABELS = {
     'fideles':                   ("Clients fidèles", "Clients ayant fait plus de 20 séances"),
     'most_remaining':            ("Plus grand solde", "Client avec le plus de séances restantes"),
     'client_not_comming':        ("Clients absents 30 jours", "Clients à relancer"),
-    'evolution_achats':          ("📊 Séances vendues (6 mois)", "Bar chart des séances vendues"),
-    'evolution_clients':         ("📈 Évolution clients (12 mois)", "Sparkline du nb total de clients"),
-    'presents_vs_inscrits':      ("📉 Présents vs Inscrits", "Comparaison par créneau"),
+    'evolution_achats':          ("Séances vendues (6 mois)", "Bar chart des séances vendues par mois"),
+    'evolution_clients':         ("Évolution clients (12 mois)", "Courbe du nb total de clients inscrits"),
+    'presents_vs_inscrits':      ("Présents vs Inscrits", "Comparaison inscrits / réellement présents par créneau"),
 }
 
 
@@ -244,9 +244,9 @@ def index():
 
     # === COLLECTE DES DONNÉES ===
 
-    # Alertes
-    negative_clients = get_negative_seances_clients() if widgets_config['negative_balance'] else []
-    zero_clients = get_zero_clients() if widgets_config['zero_balance'] else []
+    # Alertes : TOUJOURS chargées (pas optionnelles — infos critiques)
+    negative_clients = get_negative_seances_clients()
+    zero_clients = get_zero_clients()
 
     # Quick stats non-graphiques
     prochain_cours = get_prochain_cours(now) if widgets_config['prochain_cours'] else None
@@ -265,8 +265,8 @@ def index():
     evolution_clients = get_evolution_clients(now, n_months=12) if widgets_config['evolution_clients'] else None
     presents_vs_inscrits = get_presents_vs_inscrits(now, n_weeks=4, top=6) if widgets_config['presents_vs_inscrits'] else None
 
-    # Suggestions
-    suggestions_inscription = get_suggestions_inscription(now, min_consecutive=4) if widgets_config.get('suggestions_inscription') else None
+    # Suggestions d'inscription : TOUJOURS calculées (info critique)
+    suggestions_inscription = get_suggestions_inscription(now, min_consecutive=4)
 
     connection.close()
 

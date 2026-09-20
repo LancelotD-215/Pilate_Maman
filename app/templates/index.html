@@ -95,7 +95,7 @@
 {# ==========================================================
    Alertes prioritaires (soldes négatifs / à zéro)
    ========================================================== #}
-{% if widgets['negative_balance'] and negative_clients %}
+{% if negative_clients %}
 <div class="alert-card alert-danger">
     <div class="alert-icon"><i class="fas fa-exclamation"></i></div>
     <div class="alert-body">
@@ -124,7 +124,7 @@
 </div>
 {% endif %}
 
-{% if widgets['zero_balance'] and zero_clients %}
+{% if zero_clients %}
 <div class="alert-card alert-warning">
     <div class="alert-icon"><i class="fas fa-hourglass-half"></i></div>
     <div class="alert-body">
@@ -153,7 +153,7 @@
 </div>
 {% endif %}
 
-{% if widgets['suggestions_inscription'] and suggestions_inscription %}
+{% if suggestions_inscription %}
 <div class="alert-card" style="
     background: linear-gradient(90deg,
         rgba(42, 167, 155, 0.28) 0%,

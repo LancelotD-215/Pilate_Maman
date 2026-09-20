@@ -30,6 +30,10 @@ ENV/
 # Exports et listes clients : ne pas versionner
 data/*.csv
 
+# Sources brutes fournies par la maman (logos originaux, docs, etc.)
+# Les versions utilisées par le site sont copiées dans app/static/
+data_maman/
+
 # --- Outils de développement local ---
 ngrok.exe
 *.log

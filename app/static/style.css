@@ -1,45 +1,55 @@
 /* ============================================================
-   PALETTE — Personnalisation de l'apparence
+   PALETTE — Lisa Coaching Pilates
    ------------------------------------------------------------
-   Modifier les valeurs ci-dessous pour rebrander toute l'appli.
-   Toutes les couleurs, tailles et effets viennent d'ici.
+   Basée sur la gamme colorée fournie :
+     Principal (Olive)   #4B5D43
+     Secondaire (Sage)   #8DA292
+     Texte               #333333
+     Accentué (Turquoise) #00A9AC
+   Modifier ici pour rebrander toute l'appli.
    ============================================================ */
 :root {
-  /* Neutres (fonds, textes, bordures) */
-  --ground:         #F4F5F3;    /* Fond général de la page */
+  /* Neutres (fonds, textes, bordures) — teintés warm pour matcher le fond
+     crème du logo Lisa */
+  --ground:         #F5F3EE;    /* Fond général : beige-crème (comme fond logo) */
   --surface:        #FFFFFF;    /* Cartes, navbar */
-  --surface-alt:    #FBFAF7;    /* Surfaces secondaires (hover, entêtes de tableau) */
-  --surface-warm:   #EDE6D6;    /* Accent beige (widgets spéciaux) */
-  --text:           #1A1F1D;    /* Texte principal */
-  --text-muted:     #767876;    /* Texte secondaire */
-  --text-subtle:    #A5A7A2;    /* Texte tertiaire (méta, captions) */
-  --border:         #E8E7E1;    /* Bordures principales */
-  --border-strong:  #D5D3CC;    /* Bordures accentuées */
+  --surface-alt:    #FAF9F5;    /* Surfaces secondaires (hover, entêtes tableau) */
+  --surface-warm:   #EEE9DE;    /* Accent beige plus soutenu */
+  --text:           #333333;    /* Texte principal (gamme colo : Texte) */
+  --text-muted:     #6E7370;    /* Texte secondaire */
+  --text-subtle:    #A1A6A2;    /* Texte tertiaire (méta, captions) */
+  --border:         #E5E1D8;    /* Bordures principales */
+  --border-strong:  #CFC9BC;    /* Bordures accentuées */
 
-  /* Brand (couleur d'accent principale) */
-  --brand:          #2AA79B;    /* Turquoise doux */
-  --brand-dark:     #237E75;    /* Turquoise profond */
-  --brand-tint:     #E5F3F1;    /* Turquoise très clair */
-  --brand-tint-strong: #C7E8E3; /* Turquoise moyen clair */
+  /* Brand = Accentué de la gamme (turquoise vif — pour CTAs, active state) */
+  --brand:          #00A9AC;
+  --brand-dark:     #007A7C;
+  --brand-tint:     #DBF2F2;
+  --brand-tint-strong: #B5E6E7;
 
-  /* Sage (accent secondaire) */
-  --sage:           #829C7C;
-  --sage-tint:      #EBF0E5;
+  /* Sage = Secondaire de la gamme (vert doux) */
+  --sage:           #8DA292;
+  --sage-tint:      #E8EDE8;
 
-  /* Semantic (succès, warning, alerte) */
-  --success:        #2E9B77;
-  --success-tint:   #E4F1EB;
+  /* Olive = Principal de la gamme (vert foncé — pour accents forts, hero) */
+  --olive:          #4B5D43;
+  --olive-dark:     #3A4933;
+  --olive-tint:     #E7EBE3;
+
+  /* Semantic (succès, warning, alerte) — teintes naturelles cohérentes */
+  --success:        #4B7F63;    /* Vert forestier (cohérent avec olive) */
+  --success-tint:   #E4EDE7;
   --warning:        #C69A4B;
   --warning-tint:   #FBF3E0;
   --alert:          #C46850;
   --alert-tint:     #F9EAE3;
 
   /* Slot colors pour le planning (5 types de cours) */
-  --slot-1:         #2AA79B;    /* Turquoise (Pilates Fondamental) */
-  --slot-2:         #829C7C;    /* Sage (Pilates Confirmé) */
-  --slot-3:         #8E6E8B;    /* Prune (Yoga / Barre) */
-  --slot-4:         #B58C4E;    /* Ocre (Pilates Express) */
-  --slot-5:         #6BAAB0;    /* Bleu canard (autre) */
+  --slot-1:         #00A9AC;    /* Turquoise */
+  --slot-2:         #4B5D43;    /* Olive */
+  --slot-3:         #8DA292;    /* Sage */
+  --slot-4:         #B58C4E;    /* Ocre */
+  --slot-5:         #6BAAB0;    /* Bleu canard */
 
   /* Radius (rondeurs) */
   --r-sm:           8px;
@@ -53,7 +63,7 @@
   --shadow-sm:      0 1px 2px rgba(20, 30, 25, 0.03), 0 2px 6px rgba(20, 30, 25, 0.04);
   --shadow:         0 2px 8px rgba(20, 30, 25, 0.03), 0 8px 24px rgba(20, 30, 25, 0.05);
   --shadow-lg:      0 4px 16px rgba(20, 30, 25, 0.04), 0 16px 40px rgba(20, 30, 25, 0.07);
-  --shadow-brand:   0 6px 18px rgba(42, 167, 155, 0.25);
+  --shadow-brand:   0 6px 18px rgba(0, 169, 172, 0.25);
 }
 
 /* ============================================================
@@ -62,7 +72,7 @@
 * { box-sizing: border-box; }
 
 body {
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--ground);
   color: var(--text);
   line-height: 1.5;
@@ -72,11 +82,22 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', 'Montserrat', sans-serif;
   color: var(--text);
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
-h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  color: var(--olive);   /* h1 des pages : olive (identité Lisa) */
+}
+
+/* Utilitaires olive */
+.text-olive { color: var(--olive) !important; }
+.text-olive-dark { color: var(--olive-dark) !important; }
 
 /* Masquer la croix native des inputs search (webkit) */
 input[type="search"]::-webkit-search-cancel-button,
@@ -90,13 +111,14 @@ input[type="search"]::-webkit-search-decoration {
 .topbar-slim {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 12px 28px;
+  padding: 4px 28px;
   display: flex;
   align-items: center;
   gap: 18px;
   position: sticky;
   top: 0;
   z-index: 100;
+  min-height: 92px;
 }
 
 .brand-mark {
@@ -124,6 +146,18 @@ input[type="search"]::-webkit-search-decoration {
   box-shadow: var(--shadow-brand);
 }
 
+/* Logo image dans la navbar (Lisa complet — croppé sans whitespace) */
+.brand-logo {
+  height: 78px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+}
+@media (max-width: 768px) {
+  .brand-logo { height: 56px; max-width: 160px; }
+}
+
 .topbar-page-title {
   color: var(--text);
   font-size: 18px;
@@ -141,7 +175,7 @@ input[type="search"]::-webkit-search-decoration {
   background: var(--border);
 }
 .topbar-page-title strong {
-  color: var(--text);
+  color: var(--olive);      /* nom de la page dans topbar : olive (identité Lisa) */
   font-weight: 700;
 }
 
@@ -225,7 +259,7 @@ input[type="search"]::-webkit-search-decoration {
 .dock-item.active {
   background: var(--brand);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(42, 167, 155, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 169, 172, 0.35);
 }
 .dock-item i { font-size: 16px; }
 
@@ -256,7 +290,7 @@ input[type="search"]::-webkit-search-decoration {
   border-color: var(--brand-dark) !important;
   color: #fff !important;
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px rgba(42, 167, 155, 0.32);
+  box-shadow: 0 8px 22px rgba(0, 169, 172, 0.32);
 }
 
 .btn-outline-brand,
@@ -362,7 +396,7 @@ input[type="search"]::-webkit-search-decoration {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--text-muted);
+  color: var(--olive);      /* petits titres widgets : olive (identité Lisa) */
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -673,7 +707,7 @@ input[type="search"]::-webkit-search-decoration {
   outline: none;
   border-color: var(--brand) !important;
   background: var(--surface) !important;
-  box-shadow: 0 0 0 3px rgba(42, 167, 155, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 169, 172, 0.15);
 }
 
 /* Pagination : reset du wrapper <li> puis style du lien <a> */
@@ -803,7 +837,7 @@ input[type="search"]::-webkit-search-decoration {
 .form-select:focus {
   border-color: var(--brand) !important;
   background: var(--surface) !important;
-  box-shadow: 0 0 0 3px rgba(42, 167, 155, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(0, 169, 172, 0.15) !important;
   outline: none;
 }
 .form-label {
@@ -833,8 +867,8 @@ input[type="search"]::-webkit-search-decoration {
   place-items: center;
   padding: 40px 20px;
   background:
-    radial-gradient(circle at 15% 20%, rgba(42, 167, 155, 0.08) 0%, transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(130, 156, 124, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 15% 20%, rgba(0, 169, 172, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(141, 162, 146, 0.08) 0%, transparent 45%),
     var(--ground);
 }
 .login-card {
@@ -904,7 +938,7 @@ input[type="search"]::-webkit-search-decoration {
   background-size: 100% 60px;
 }
 .col-jour:last-child { border-right: none; }
-.col-jour.is-today { background-color: rgba(42, 167, 155, 0.03) !important; }
+.col-jour.is-today { background-color: rgba(0, 169, 172, 0.03) !important; }
 .header-jour { padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text-muted); }
 .header-jour.is-today { color: var(--brand-dark) !important; }
 
@@ -927,7 +961,7 @@ input[type="search"]::-webkit-search-decoration {
 
 /* Slot colors (dégradés) */
 .bg-slot-1 { background: linear-gradient(135deg, var(--slot-1) 0%, var(--brand-dark) 100%); color: #fff; }
-.bg-slot-2 { background: linear-gradient(135deg, var(--slot-2) 0%, #5F7A5A 100%); color: #fff; }
+.bg-slot-2 { background: linear-gradient(135deg, var(--slot-2) 0%, var(--olive-dark) 100%); color: #fff; }
 .bg-slot-3 { background: linear-gradient(135deg, var(--slot-3) 0%, #6B4E68 100%); color: #fff; }
 .bg-slot-4 { background: linear-gradient(135deg, var(--slot-4) 0%, #8E6C36 100%); color: #fff; }
 .bg-slot-5 { background: linear-gradient(135deg, var(--slot-5) 0%, #4A7F84 100%); color: #fff; }
@@ -935,7 +969,7 @@ input[type="search"]::-webkit-search-decoration {
 
 /* Classes de mapping planning (pilates/yoga/etc) */
 .bg-fondamental  { background: linear-gradient(135deg, var(--slot-1) 0%, var(--brand-dark) 100%); color: #fff; }
-.bg-intermediaire { background: linear-gradient(135deg, var(--slot-2) 0%, #5F7A5A 100%); color: #fff; }
+.bg-intermediaire { background: linear-gradient(135deg, var(--slot-2) 0%, var(--olive-dark) 100%); color: #fff; }
 .bg-avance       { background: linear-gradient(135deg, var(--slot-5) 0%, #4A7F84 100%); color: #fff; }
 .bg-yoga         { background: linear-gradient(135deg, var(--slot-3) 0%, #6B4E68 100%); color: #fff; }
 .bg-mobilite     { background: linear-gradient(135deg, var(--slot-4) 0%, #8E6C36 100%); color: #fff; }

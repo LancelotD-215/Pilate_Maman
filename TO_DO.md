@@ -23,9 +23,11 @@
 - [ ] Vérifier que le compteur "séances du mois" reste correct après ajout de nouveaux types de cours
 
 ## Design / UX
+- [x] Intégrer le logo définitif "Lisa Coaching Pilates" (nav + login + favicon)
+- [x] Palette officielle (olive #4B5D43 / sage #8DA292 / turquoise #00A9AC) intégrée
+- [x] Fontes officielles Poppins (titres) + Montserrat (body)
 - [ ] Implémenter un mode sombre (thème dark) en complément du thème clair actuel
-- [ ] Intégrer le logo définitif du studio dans `app/static/` (nav + login + favicon)
-- [ ] Remplacer les couleurs placeholder (turquoise/beige) par les vraies couleurs de la maman dans `style.css`
+- [ ] Optimiser la taille du logo (`logo_lisa.png` fait 848 KB — le compresser à ~50 KB max pour un chargement plus rapide)
 - [ ] (Optionnel) Convertir en **PWA** (Progressive Web App) — ajouter `manifest.json` + service worker minimal pour que le site puisse s'installer sur l'écran d'accueil du téléphone comme une "vraie app" (plein écran, icône personnalisée, sans barre Safari)
 
 ## Optionnel (nice-to-have)
