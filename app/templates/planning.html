@@ -68,6 +68,21 @@
         transform: scale(1.02);
         z-index: 20; /* Passe au dessus des autres au survol */
     }
+    /* Compteur de présents affiché sur les cours passés */
+    .slot-presents {
+        margin-top: 2px;
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.95;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255, 255, 255, 0.22);
+        padding: 1px 7px;
+        border-radius: 999px;
+        width: fit-content;
+    }
+    .slot-presents i { font-size: 9px; }
 
     /* --- COULEURS DES CRÉNEAUX ---
        Palette générique. Pour personnaliser :
@@ -147,7 +162,7 @@
                     {% else %}{% set couleur_class = 'bg-defaut' %}
                     {% endif %}
 
-                    <div class="creneau-bloc {{ couleur_class }}"
+                    <div class="creneau-bloc {{ couleur_class }} {% if creneau.is_annule %}annule{% endif %}"
                         style="{{ creneau.style }}"
                         data-bs-toggle="modal"
                         data-bs-target="#seanceModal"
@@ -157,11 +172,19 @@
                         data-duree="{{ creneau.data['duree'] }}"
                         data-date="{{ creneau.date_reelle }}"
                         data-is-past="{{ 'true' if creneau.is_past else 'false' }}"
+                        data-is-annule="{{ 'true' if creneau.is_annule else 'false' }}"
+                        data-raison-annulation="{{ creneau.raison_annulation or '' }}"
                         data-clients='{{ creneau.clients | tojson }}'
                         data-surprises='{{ creneau.surprises | tojson }}'>
 
                         <div class="fw-bold">{{ creneau.data['heure_debut'] }}</div>
                         <div class="text-truncate" style="font-weight: 500;">{{ creneau.data['type_seance'] }}</div>
+                        {% if creneau.is_past and not creneau.is_annule %}
+                        <div class="slot-presents">
+                            <i class="fas fa-user-check"></i>
+                            {{ creneau.nb_presents }} présent{% if creneau.nb_presents > 1 %}s{% endif %}
+                        </div>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
@@ -311,6 +334,15 @@
       </div>
       <div class="modal-body">
 
+        <!-- Bandeau "Cours annulé" (affiché seulement si annulé) -->
+        <div class="modal-annule-banner" id="modalAnnuleBanner" style="display: none;">
+            <i class="fas fa-ban"></i>
+            <div>
+                Ce cours a été <strong>annulé</strong>.
+                <span class="raison" id="modalAnnuleRaison"></span>
+            </div>
+        </div>
+
         <!-- GROUPE 1 : Prévus (en haut, mis en avant) -->
         <div class="modal-clients-group group-prevus" id="groupPrevus" style="display: none;">
             <div class="modal-clients-group-title">
@@ -343,12 +375,46 @@
         </div>
 
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="justify-content: space-between;">
+        {# Bouton "Annuler ce cours" : discret (action rare) #}
+        <button type="button" id="btnAnnulerCours" data-action="annuler-cours"
+                style="display: none; background: transparent; border: none;
+                       color: var(--text-muted); font-size: 12px; padding: 6px 4px;
+                       text-decoration: underline; cursor: pointer;">
+            <i class="fas fa-ban" style="font-size: 10px;"></i> Annuler ce cours
+        </button>
+        {# Bouton "Réactiver" : plus visible (action pour sortir de l'annulation) #}
+        <button type="button" id="btnReactiverCours" data-action="reactiver-cours"
+                class="btn btn-brand btn-sm" style="display: none;">
+            <i class="fas fa-rotate-left"></i> Réactiver ce cours
+        </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
       </div>
     </div>
   </div>
 </div>
+
+{# Bandeau "Cours annulé" à afficher en haut de la modale quand annulé #}
+<style>
+  .modal-annule-banner {
+    padding: 12px 16px;
+    background: var(--alert-tint);
+    border-left: 4px solid var(--alert);
+    border-radius: var(--r);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--alert);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .modal-annule-banner .raison {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 13px;
+  }
+</style>
 
 <script>
     // ============================================================
@@ -537,9 +603,27 @@
             var duree = button.getAttribute('data-duree');
             var dateReelle = button.getAttribute('data-date');
             var isPast = button.getAttribute('data-is-past') === 'true';
+            var isAnnule = button.getAttribute('data-is-annule') === 'true';
+            var raisonAnnulation = button.getAttribute('data-raison-annulation') || '';
 
             var clients = JSON.parse(button.getAttribute('data-clients'));
             var surprises = JSON.parse(button.getAttribute('data-surprises') || '[]');
+
+            // Bandeau annulation
+            var banner = seanceModal.querySelector('#modalAnnuleBanner');
+            var raisonSpan = seanceModal.querySelector('#modalAnnuleRaison');
+            banner.style.display = isAnnule ? '' : 'none';
+            raisonSpan.textContent = raisonAnnulation ? '· ' + raisonAnnulation : '';
+
+            // Boutons annuler/réactiver dans le footer
+            var btnAnnuler = seanceModal.querySelector('#btnAnnulerCours');
+            var btnReactiver = seanceModal.querySelector('#btnReactiverCours');
+            btnAnnuler.style.display = isAnnule ? 'none' : '';
+            btnReactiver.style.display = isAnnule ? '' : 'none';
+            btnAnnuler.dataset.creneauId = creneauId;
+            btnAnnuler.dataset.date = dateReelle;
+            btnReactiver.dataset.creneauId = creneauId;
+            btnReactiver.dataset.date = dateReelle;
 
             // Header
             seanceModal.querySelector('#modalType').textContent = type;
@@ -604,14 +688,61 @@
             }
         });
 
-        // Délégation clics : présence + prévu (dans la modale)
+        // ============================================================
+        // Délégation clics : centralise TOUS les data-action de la modale
+        // ============================================================
         seanceModal.addEventListener('click', function(e) {
             var btn = e.target.closest('[data-action]');
             if (!btn) return;
-            if (btn.dataset.action === 'marquer-presence') validerPresenceAjax(btn);
-            else if (btn.dataset.action === 'toggle-prevu') togglePrevuAjax(btn);
+            var action = btn.dataset.action;
+            if (action === 'marquer-presence') validerPresenceAjax(btn);
+            else if (action === 'toggle-prevu') togglePrevuAjax(btn);
+            else if (action === 'annuler-cours') annulerCoursAjax(btn);
+            else if (action === 'reactiver-cours') desannulerCoursAjax(btn);
         });
     });
+
+    // ============================================================
+    // Handler : annuler un cours (avec prompt raison optionnel)
+    // ============================================================
+    function annulerCoursAjax(button) {
+        var raison = prompt('Raison de l\'annulation (optionnel) — laisser vide pour sauter');
+        if (raison === null) return;   // Cancel du prompt
+        var fd = new FormData();
+        fd.append('creneau_id', button.dataset.creneauId);
+        fd.append('date_seance', button.dataset.date);
+        if (raison) fd.append('raison', raison);
+        fetch('/annuler_cours', { method: 'POST', body: fd })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function(data) {
+                if (data.ok) { location.reload(); }
+                else { alert('Erreur : ' + (data.error || 'inconnue')); }
+            })
+            .catch(function(err) { alert('Erreur réseau : ' + err.message); });
+    }
+
+    // ============================================================
+    // Handler : réactiver un cours annulé
+    // ============================================================
+    function desannulerCoursAjax(button) {
+        if (!confirm('Réactiver ce cours ?')) return;
+        var fd = new FormData();
+        fd.append('creneau_id', button.dataset.creneauId);
+        fd.append('date_seance', button.dataset.date);
+        fetch('/desannuler_cours', { method: 'POST', body: fd })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function(data) {
+                if (data.ok) { location.reload(); }
+                else { alert('Erreur'); }
+            })
+            .catch(function(err) { alert('Erreur réseau : ' + err.message); });
+    }
 </script>
 
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import '_macros.html' as m %}
 
 {% block page_title %}Clients{% endblock %}
 {% block page_name %}Clients{% endblock %}
@@ -84,10 +85,8 @@
           </div>
           <input type="hidden" name="client_id" id="inputClientId">
           <hr>
-          <div class="mb-3">
-            <label class="form-label">Nombre de séances à ajouter</label>
-            <input type="number" class="form-control form-control-lg text-center" name="seances_ajoutees" value="5" min="1" required>
-          </div>
+          <label class="form-label">Choisir le forfait</label>
+          {{ m.pack_selector(default='10', uid='gc') }}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>

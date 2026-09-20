@@ -231,6 +231,38 @@ def client_not_comming(since_date, until_date):
 
 
 # ============================================================
+# Utilitaire fréquence des inscriptions (hebdo / bimensuel)
+# ============================================================
+
+def is_inscription_active_this_week(frequence, date_debut, target_date):
+    """
+    Détermine si un client inscrit doit apparaître dans le planning cette semaine
+    en fonction de sa fréquence.
+
+    Args:
+        frequence (str): 'hebdo' (défaut, toutes les semaines) ou 'bimensuel' (1 sem/2)
+        date_debut (str ou date): date de début d'inscription (référence pour la parité)
+        target_date (date): date visée (n'importe quel jour de la semaine cible)
+
+    Returns:
+        bool: True si le client apparaît cette semaine.
+    """
+    if frequence != 'bimensuel':
+        return True
+    if not date_debut:
+        return True
+    if isinstance(date_debut, str):
+        debut = datetime.strptime(date_debut[:10], '%Y-%m-%d').date()
+    else:
+        debut = date_debut
+    diff_days = (target_date - debut).days
+    if diff_days < 0:
+        # date_debut dans le futur : pas encore actif
+        return False
+    return (diff_days // 7) % 2 == 0
+
+
+# ============================================================
 # Widgets ajoutés en V2 : prochain cours, aperçu jour, fidèles, etc.
 # ============================================================
 

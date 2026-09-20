@@ -1,0 +1,90 @@
+{# ============================================================
+   Macros Jinja réutilisables dans plusieurs templates.
+   Utilisation :  {% import '_macros.html' as m %}
+                  {{ m.pack_selector() }}
+   ============================================================ #}
+
+{#
+   Pack selector : 4 forfaits prédéfinis + "Autre"
+   ------------------------------------------------------------
+   Envoie deux champs POST :
+     - forfait          : 'essai', 'unite', '10', '20' ou 'autre'
+     - seances_ajoutees : le nombre de séances (calculé côté JS)
+   Le JS (au bas du macro) gère l'activation visuelle et le
+   remplissage du champ hidden.
+#}
+{% macro pack_selector(default='10', uid='pack') %}
+<div class="pack-selector" data-pack-selector="{{ uid }}">
+    {% set packs = [
+        ('essai', 'Essai',    1),
+        ('unite', 'Unité',    1),
+        ('10',    '10',      10),
+        ('20',    '20',      20),
+    ] %}
+    {% for value, label, count in packs %}
+    <label class="pack-pill {% if default == value %}active{% endif %}">
+        <input type="radio" name="forfait" value="{{ value }}"
+               data-nombre="{{ count }}"
+               {% if default == value %}checked{% endif %}>
+        <span class="pack-label">{{ label }}</span>
+        {% if count > 1 %}<span class="pack-sublabel">{{ count }} séances</span>{% endif %}
+        {% if value in ('essai', 'unite') %}<span class="pack-sublabel">1 séance</span>{% endif %}
+    </label>
+    {% endfor %}
+    <label class="pack-pill">
+        <input type="radio" name="forfait" value="autre">
+        <span class="pack-label">Autre</span>
+        <span class="pack-sublabel">au choix</span>
+    </label>
+</div>
+
+<div class="pack-autre-input" data-pack-autre="{{ uid }}">
+    <label for="pack_autre_input_{{ uid }}">Nombre de séances</label>
+    <input type="number" id="pack_autre_input_{{ uid }}" class="form-control"
+           min="1" value="5" placeholder="Ex : 5" style="max-width: 200px;">
+</div>
+
+{# Champ caché qui sera POST : rempli automatiquement par le JS ci-dessous #}
+<input type="hidden" name="seances_ajoutees" value="{{ default if default not in ('essai', 'unite') and default != 'autre' else '1' }}">
+
+<script>
+(function() {
+    // Trouve le selector avec ce uid
+    var sel = document.querySelector('[data-pack-selector="{{ uid }}"]');
+    if (!sel) return;
+    var autre = document.querySelector('[data-pack-autre="{{ uid }}"]');
+    var hidden = sel.parentElement.querySelector('input[type="hidden"][name="seances_ajoutees"]');
+    var customInput = autre.querySelector('input[type="number"]');
+
+    // Empêche que le hidden name conflit avec le custom input : le custom n'a PAS de name
+    // (on ne le POST pas, on ne fait que copier sa valeur dans hidden)
+
+    function updateActive() {
+        sel.querySelectorAll('.pack-pill').forEach(function(p) {
+            var input = p.querySelector('input[type="radio"]');
+            if (input.checked) {
+                p.classList.add('active');
+                if (input.value === 'autre') {
+                    autre.classList.add('show');
+                    hidden.value = customInput.value || 1;
+                    customInput.focus();
+                } else {
+                    autre.classList.remove('show');
+                    hidden.value = input.dataset.nombre;
+                }
+            } else {
+                p.classList.remove('active');
+            }
+        });
+    }
+
+    sel.addEventListener('change', updateActive);
+    customInput.addEventListener('input', function() {
+        hidden.value = customInput.value || 1;
+    });
+
+    // Init si "autre" est le default et que default n'est pas 1 numérique
+    updateActive();
+})();
+</script>
+{% endmacro %}

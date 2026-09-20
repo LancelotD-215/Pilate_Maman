@@ -1,45 +1,56 @@
 {% extends 'layout.html' %}
+{% import '_macros.html' as m %}
 
 {% block page_title %}Ajout séances{% endblock %}
 {% block page_name %}Ajout séances{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-8"> <h2 class="mb-4 text-center">Recharger un compte</h2>
-            
-            <form method="post" class="p-4 border rounded shadow-sm bg-white">
-                
-                <div class="row mb-3">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <label class="form-label fw-bold">Prénom</label>
-                        <input type="text" class="form-control" name="prenom" placeholder="Ex: Marie" required>
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8 col-xl-7">
+
+        <div class="card">
+            <div class="card-body p-4 p-md-5">
+
+                <form method="post" style="display: flex; flex-direction: column; gap: 24px;">
+
+                    <div>
+                        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+                                    font-weight: 700; color: var(--olive); margin-bottom: 12px;">
+                            Client
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="prenom" class="form-label">Prénom</label>
+                                <input type="text" class="form-control" id="prenom" name="prenom" placeholder="Ex : Marie" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="nom" class="form-label">Nom</label>
+                                <input type="text" class="form-control" id="nom" name="nom" placeholder="Ex : Dupont" required>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Nom</label>
-                        <input type="text" class="form-control" name="nom" placeholder="Ex: Dupont" required>
+
+                    <div>
+                        <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
+                                    font-weight: 700; color: var(--olive); margin-bottom: 12px;">
+                            Forfait acheté
+                        </div>
+                        {{ m.pack_selector(default='10', uid='as') }}
                     </div>
-                </div>
 
-                <hr class="my-4 text-muted">
-
-                <div class="mb-4">
-                    <label class="form-label">Nombre de séances à ajouter</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" name="seances_ajoutees" value="8" min="1" required>
-                        <span class="input-group-text">séances</span>
+                    <div class="d-flex justify-content-end gap-2 mt-2" style="border-top: 1px solid var(--border); padding-top: 20px;">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">Annuler</a>
+                        <button type="submit" class="btn btn-brand">
+                            <i class="fas fa-check"></i>
+                            Valider le rechargement
+                        </button>
                     </div>
-                    <div class="form-text">Ce montant sera ajouté au solde actuel du client.</div>
-                </div>
 
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <a href="/" class="btn btn-outline-secondary me-md-2">Annuler</a>
-                    <button type="submit" class="btn btn-success px-4">Valider le rechargement</button>
-                </div>
+                </form>
 
-            </form>
-
+            </div>
         </div>
+
     </div>
 </div>
 {% endblock %}

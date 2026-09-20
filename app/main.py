@@ -30,6 +30,8 @@ from app.app_lib import (
     get_evolution_clients,
     get_presents_vs_inscrits,
     get_suggestions_inscription,
+    # fréquence bimensuelle
+    is_inscription_active_this_week,
 )
 from dotenv import load_dotenv
 import pytz
@@ -391,48 +393,50 @@ def ajout_client():
     # connexion à la base de données
     connection = get_db_connection()
 
-    if request.method == "POST": # si l'utilisateur a soumis le formulaire (POST)
-        # récupération des données du formulaire
+    if request.method == "POST":
         prenom = request.form['prenom'].strip().title()
         nom = request.form['nom'].strip().title()
-        seances_initiales = int(request.form['seances_restantes'])
+        seances_initiales = int(request.form.get('seances_ajoutees', 0))  # vient du pack selector
+        forfait_initial = request.form.get('forfait')                     # 'essai', 'unite', '10', '20', 'autre' ou None
 
-        email = request.form.get('email') # .get pour champ optionnel
+        email = request.form.get('email')
         telephone = request.form.get('telephone')
-
         abonnement = 1 if request.form.get('abonnement') else 0
+        creneau = request.form.get('creneau')
 
-        creneau = request.form.get('creneau') # pour les inscriptions (optionnel car on pourra le remplir par la suite)
-
-        # vérification si le client existe déjà
-        existing_client = connection.execute('SELECT * FROM clients WHERE prenom = ? AND nom = ?', (prenom, nom)).fetchone()
+        existing_client = connection.execute(
+            'SELECT * FROM clients WHERE prenom = ? AND nom = ?', (prenom, nom)
+        ).fetchone()
 
         if existing_client:
             connection.close()
             return (f"<h1>Erreur : Le client '{prenom} {nom}' existe déjà.</h1><p>Veuillez vérifier les informations et réessayer.</p><a href='/ajout_client'>Réessayer</a>")
 
-        else:
-            # curseur pour récupérer l'ID du nouveau client
-            curseur = connection.execute('INSERT INTO clients (prenom, nom, seances_restantes, email, telephone, abonnement) VALUES (?, ?, ?, ?, ?, ?)',(prenom, nom, seances_initiales, email, telephone, abonnement))
+        curseur = connection.execute(
+            'INSERT INTO clients (prenom, nom, seances_restantes, email, telephone, abonnement) VALUES (?, ?, ?, ?, ?, ?)',
+            (prenom, nom, seances_initiales, email, telephone, abonnement)
+        )
+        nouveau_client_id = curseur.lastrowid
+        current_time = datetime.now(paris_tz).strftime('%Y-%m-%d %H:%M:%S')
 
-            # récupération de l'ID du nouveau client
-            nouveau_client_id = curseur.lastrowid
+        # Historique : entrée NEW_ACCOUNT (avec forfait si un pack initial a été choisi)
+        connection.execute(
+            'INSERT INTO historique_seances (client_id, action, nombre, forfait, date_heure) VALUES (?, ?, ?, ?, ?)',
+            (nouveau_client_id, 'NEW_ACCOUNT', seances_initiales, forfait_initial, current_time)
+        )
 
-            current_time = datetime.now(paris_tz).strftime('%Y-%m-%d %H:%M:%S')
+        if creneau:
+            # fréquence : 'hebdo' (défaut) ou 'bimensuel' selon la case cochée
+            freq = 'bimensuel' if request.form.get('frequence') == 'bimensuel' else 'hebdo'
+            connection.execute(
+                'INSERT INTO inscriptions (client_id, creneau_id, frequence) VALUES (?, ?, ?)',
+                (nouveau_client_id, creneau, freq)
+            )
 
-            # ajout dans historique seances
-            connection.execute('INSERT INTO historique_seances (client_id, action, nombre, date_heure) VALUES (?, ?, ?, ?)',(nouveau_client_id, 'NEW_ACCOUNT', seances_initiales, current_time))
+        connection.commit()
+        connection.close()
 
-            # ajout des inscriptions si un créneau a été sélectionné
-            if creneau:
-                connection.execute('INSERT INTO inscriptions (client_id, creneau_id) VALUES (?, ?)', (nouveau_client_id, creneau))
-
-            # commit des changements
-            connection.commit()
-            connection.close()
-
-            # renvoie de l'utilisateur vers l'accueil
-            return redirect(url_for('index'))
+        return redirect(url_for('index'))
 
     if request.method == "GET" :
         planning = connection.execute('''
@@ -460,30 +464,26 @@ def ajout_seances():
     connection = get_db_connection()
 
     if request.method == "POST":
-        # récupération des données du formulaire
         prenom = request.form['prenom'].strip().title()
         nom = request.form['nom'].strip().title()
         seances_ajoutees = int(request.form['seances_ajoutees'])
+        forfait = request.form.get('forfait', 'autre')
 
-        # recherche du client dans la base de données
         client = connection.execute('SELECT * FROM clients WHERE prenom = ? AND nom = ?', (prenom, nom)).fetchone()
 
         if client:
             client_id = client['id']
-
-            # mise à jour du nombre de séances restantes pour le client
-            connection.execute('UPDATE clients SET seances_restantes = seances_restantes + ? WHERE id = ?', (seances_ajoutees, client_id))
-
+            connection.execute(
+                'UPDATE clients SET seances_restantes = seances_restantes + ? WHERE id = ?',
+                (seances_ajoutees, client_id)
+            )
             current_time = datetime.now(paris_tz).strftime('%Y-%m-%d %H:%M:%S')
-
-            # ajout dans historique seances
-            connection.execute('INSERT INTO historique_seances (client_id, action, nombre, date_heure) VALUES (?, ?, ?, ?)', (client_id, "ADD_SEANCES", seances_ajoutees, current_time))
-
-            # commit des changements
+            connection.execute(
+                'INSERT INTO historique_seances (client_id, action, nombre, forfait, date_heure) VALUES (?, ?, ?, ?, ?)',
+                (client_id, "ADD_SEANCES", seances_ajoutees, forfait, current_time)
+            )
             connection.commit()
             connection.close()
-
-            # renvoie l'utilisateur vers l'accueil
             return redirect(url_for('index'))
 
     if request.method == "GET" :
@@ -507,35 +507,30 @@ def ajout_seances_rapide():
     connection = get_db_connection()
 
     if request.method == "POST":
-        # récupération des données du formulaire
         client_id = int(request.form['client_id'])
         seances_ajoutees = int(request.form['seances_ajoutees'])
+        forfait = request.form.get('forfait', 'autre')    # 'essai', 'unite', '10', '20', 'autre'
 
-        # récupération de l'heure de paris
         current_time = datetime.now(paris_tz).strftime('%Y-%m-%d %H:%M:%S')
 
-        # mise à jour du nombre de séances restantes pour le client
-        connection.execute('UPDATE clients SET seances_restantes = seances_restantes + ? WHERE id = ?', (seances_ajoutees, client_id))
+        connection.execute(
+            'UPDATE clients SET seances_restantes = seances_restantes + ? WHERE id = ?',
+            (seances_ajoutees, client_id)
+        )
+        connection.execute(
+            'INSERT INTO historique_seances (client_id, action, nombre, forfait, date_heure) VALUES (?, ?, ?, ?, ?)',
+            (client_id, "ADD_SEANCES", seances_ajoutees, forfait, current_time)
+        )
 
-        # ajout dans historique seances
-        connection.execute('INSERT INTO historique_seances (client_id, action, nombre, date_heure) VALUES (?, ?, ?, ?)', (client_id, "ADD_SEANCES", seances_ajoutees, current_time))
-
-        # récupération de l'origine de la requête
         origine = request.form.get('origine')
-
-        # commit des changements
         connection.commit()
         connection.close()
 
-        # renvoie l'utilisateur vers la page appropriée selon l'origine du formulaire
         if origine == 'index':
-            # Si le formulaire contenait <input name="origine" value="index">
             return redirect(url_for('index'))
         elif origine == 'fiche_client':
-            # Si le formulaire contenait <input name="origine" value="fiche_client">
             return redirect(url_for('fiche_client', client_id=client_id))
         else:
-            # Sinon (comportement par défaut pour la page gestion_clients)
             return redirect(url_for('gestion_clients'))
 
 
@@ -592,9 +587,9 @@ def fiche_client(client_id):
     # récupération des informations du client
     client = connection.execute('SELECT * FROM clients WHERE id = ?', (client_id,)).fetchone()
 
-    # récupération des inscriptions du client
+    # récupération des inscriptions du client (avec fréquence)
     inscriptions = connection.execute('''
-        SELECT s.id, s.jour_semaine, s.heure_debut, s.type_seance
+        SELECT s.id, s.jour_semaine, s.heure_debut, s.type_seance, h.frequence
         FROM inscriptions h
         JOIN semaine_type s ON h.creneau_id = s.id
         WHERE h.client_id = ?
@@ -602,7 +597,7 @@ def fiche_client(client_id):
 
     # récupération de l'historique des séances du client (10 dernières actions)
     historique = connection.execute('''
-        SELECT date_heure, action, nombre
+        SELECT date_heure, action, nombre, forfait
         FROM historique_seances
         WHERE client_id = ?
         ORDER BY date_heure DESC
@@ -668,12 +663,21 @@ def planning():
         'SELECT * FROM semaine_type WHERE actif = 1 ORDER BY heure_debut'
     ).fetchall()
 
-    # 2. Inscriptions (qui est censé venir chaque semaine ?)
+    # 2. Inscriptions (qui est censé venir chaque semaine ?) — inclut la fréquence
     inscriptions_data = connection.execute('''
-        SELECT i.creneau_id, c.id as client_id, c.prenom, c.nom, c.seances_restantes
+        SELECT i.creneau_id, i.frequence, i.date_debut,
+               c.id as client_id, c.prenom, c.nom, c.seances_restantes
         FROM inscriptions i
         JOIN clients c ON i.client_id = c.id
     ''').fetchall()
+
+    # 2bis. Annulations de cours pour la semaine
+    annulations_data = connection.execute('''
+        SELECT creneau_id, date_seance, raison
+        FROM annulations_cours
+        WHERE date_seance >= ? AND date_seance <= ?
+    ''', (start_sql, end_of_week.strftime('%Y-%m-%d'))).fetchall()
+    annulations_map = {(a['creneau_id'], a['date_seance']): a['raison'] for a in annulations_data}
 
     # 3. Prévisions de la semaine (qui a confirmé pour un jour précis ?)
     previsions_data = connection.execute('''
@@ -696,9 +700,13 @@ def planning():
 
     # --- TRAITEMENT DES DONNÉES EN PYTHON ---
 
-    # A. Inscriptions organisées par créneau : { creneau_id : [ {id, nom, solde}, ... ] }
+    # A. Inscriptions organisées par créneau, avec filtrage bimensuel
+    # (un client bimensuel apparaît une semaine sur deux à partir de sa date_debut)
+    target_week_date = start_of_week.date()   # référence : lundi de la semaine affichée
     clients_par_creneau = {}
     for i in inscriptions_data:
+        if not is_inscription_active_this_week(i['frequence'], i['date_debut'], target_week_date):
+            continue   # bimensuel qui ne tombe pas cette semaine → skip
         cid = i['creneau_id']
         clients_par_creneau.setdefault(cid, []).append({
             'id': i['client_id'],
@@ -819,12 +827,23 @@ def planning():
             # Tri : prévus en haut, puis inscrits normaux, puis surprises rendus après
             final_clients.sort(key=lambda x: (not x['prevu'], x['nom']))
 
+            # Annulation éventuelle de ce créneau à cette date
+            annulation_key = (creneau['id'], jour_date_str)
+            is_annule = annulation_key in annulations_map
+            raison_annulation = annulations_map.get(annulation_key)
+
+            # Nb total de présents (inscrits présents + surprises)
+            nb_presents = sum(1 for cl in final_clients if cl['present']) + len(surprises)
+
             creneaux_jour_processed.append({
                 'data': creneau,
                 'style': f"top: {top_percent}%; height: {height_percent}%;",
                 'clients': final_clients,
                 'surprises': surprises,
                 'is_past': is_past,
+                'is_annule': is_annule,
+                'raison_annulation': raison_annulation,
+                'nb_presents': nb_presents,
                 'date_reelle': jour_date_str,
             })
 
@@ -863,6 +882,51 @@ def inscrire_suggestion():
     finally:
         connection.close()
     return redirect(url_for('index'))
+
+
+@app.route('/annuler_cours', methods=['POST'])
+def annuler_cours():
+    """
+    Annule un cours à une date précise (l'ajoute à annulations_cours).
+    Le cours reste visible dans le planning mais grisé + badge "Annulé".
+    """
+    from flask import jsonify
+
+    creneau_id = int(request.form['creneau_id'])
+    date_seance = request.form['date_seance']
+    raison = (request.form.get('raison') or '').strip() or None
+
+    connection = get_db_connection()
+    try:
+        connection.execute(
+            'INSERT INTO annulations_cours (creneau_id, date_seance, raison) VALUES (?, ?, ?)',
+            (creneau_id, date_seance, raison)
+        )
+        connection.commit()
+        result = {'ok': True}
+    except sqlite3.IntegrityError:
+        result = {'ok': True, 'already': True}
+    finally:
+        connection.close()
+    return jsonify(result)
+
+
+@app.route('/desannuler_cours', methods=['POST'])
+def desannuler_cours():
+    """Réactive un cours précédemment annulé (retire de annulations_cours)."""
+    from flask import jsonify
+
+    creneau_id = int(request.form['creneau_id'])
+    date_seance = request.form['date_seance']
+
+    connection = get_db_connection()
+    connection.execute(
+        'DELETE FROM annulations_cours WHERE creneau_id = ? AND date_seance = ?',
+        (creneau_id, date_seance)
+    )
+    connection.commit()
+    connection.close()
+    return jsonify({'ok': True})
 
 
 @app.route('/marquer_prevu', methods=['POST'])
@@ -973,19 +1037,21 @@ def modif_inscriptions():
     connection = get_db_connection()
 
     if request.method == "POST":
-        # récupération des données du formulaire
         client_id = int(request.form['client_id'])
         nouveaux_creneaux = request.form.getlist('creneaux')
 
-        # 1. On nettoie les anciennes inscriptions
+        # 1. Nettoie les anciennes inscriptions
         connection.execute('DELETE FROM inscriptions WHERE client_id = ?', (client_id,))
 
-        # 2. On ajoute les nouvelles
+        # 2. Ajoute les nouvelles, avec fréquence individuelle pour chaque créneau
         for creneau_id in nouveaux_creneaux:
-            connection.execute('INSERT INTO inscriptions (client_id, creneau_id) VALUES (?, ?)',
-                            (client_id, creneau_id))
+            # case "bimensuel_<creneau_id>" cochée dans le form
+            freq = 'bimensuel' if request.form.get(f'bimensuel_{creneau_id}') == '1' else 'hebdo'
+            connection.execute(
+                'INSERT INTO inscriptions (client_id, creneau_id, frequence) VALUES (?, ?, ?)',
+                (client_id, creneau_id, freq)
+            )
 
-        # commit des changements
         connection.commit()
         connection.close()
 

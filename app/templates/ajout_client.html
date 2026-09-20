@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+{% import '_macros.html' as m %}
 
 {% block page_title %}Nouveau client{% endblock %}
 {% block page_name %}Nouveau client{% endblock %}
@@ -48,25 +49,23 @@
                         </div>
                     </div>
 
-                    {# --- Section : Séances --- #}
+                    {# --- Section : Forfait initial --- #}
                     <div>
                         <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
                                     font-weight: 700; color: var(--olive); margin-bottom: 12px;">
-                            Séances
+                            Forfait initial <span style="color: var(--text-subtle); font-weight: 500; text-transform: none; letter-spacing: 0;"></span>
                         </div>
-                        <label for="seances_restantes" class="form-label">Solde de départ</label>
-                        <input type="number" class="form-control" id="seances_restantes" name="seances_restantes"
-                               value="0" min="0" style="max-width: 200px;">
+                        {{ m.pack_selector(default='essai', uid='ac') }}
                     </div>
 
-                    {# --- Section : Créneau récurrent --- #}
+                    {# --- Section : Créneau inscrit --- #}
                     <div>
                         <div style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;
                                     font-weight: 700; color: var(--olive); margin-bottom: 12px;">
-                            Créneau récurrent <span style="color: var(--text-subtle); font-weight: 500; text-transform: none; letter-spacing: 0;">(optionnel)</span>
+                            Créneau inscrit <span style="color: var(--text-subtle); font-weight: 500; text-transform: none; letter-spacing: 0;">(optionnel)</span>
                         </div>
                         <select class="form-select" id="creneau" name="creneau" style="max-width: 400px;">
-                            <option value="" selected>Aucun créneau récurrent</option>
+                            <option value="" selected>Aucun créneau inscrit</option>
                             {% for creneau in planning %}
                             {% if creneau.jour_semaine == 0 %}{% set jour = 'Lundi' %}
                             {% elif creneau.jour_semaine == 1 %}{% set jour = 'Mardi' %}
@@ -79,6 +78,13 @@
                             <option value="{{ creneau.id }}">{{ jour }} {{ creneau.heure_debut }} — {{ creneau.type_seance }}</option>
                             {% endfor %}
                         </select>
+
+                        <div class="form-check mt-3" style="max-width: 400px;">
+                            <input class="form-check-input" type="checkbox" name="frequence" value="bimensuel" id="freqBimensuel">
+                            <label class="form-check-label" for="freqBimensuel">
+                                Une semaine sur deux
+                            </label>
+                        </div>
                     </div>
 
                     {# --- Actions --- #}

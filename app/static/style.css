@@ -762,6 +762,76 @@ input[type="search"]::-webkit-search-decoration {
 }
 
 /* ============================================================
+   Pack selector (choix du forfait à l'ajout de séances)
+   ============================================================ */
+.pack-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.pack-pill {
+  flex: 1 1 90px;
+  min-width: 90px;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.15s;
+  text-align: center;
+  position: relative;
+}
+.pack-pill input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.pack-pill:hover {
+  border-color: var(--brand-tint-strong);
+  background: var(--brand-tint);
+}
+.pack-pill.active {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  box-shadow: 0 2px 6px rgba(0, 169, 172, 0.18);
+}
+.pack-pill .pack-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pack-pill.active .pack-label { color: var(--brand-dark); }
+.pack-pill .pack-sublabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.pack-pill.active .pack-sublabel { color: var(--brand-dark); opacity: 0.85; }
+
+.pack-autre-input {
+  margin-top: 8px;
+  display: none;
+  animation: fadeInDown 0.2s ease-out;
+}
+.pack-autre-input.show { display: block; }
+.pack-autre-input label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
    Mini stats bar (bandeau de stats en haut de page)
    ============================================================ */
 .stats-bar {
@@ -958,6 +1028,38 @@ input[type="search"]::-webkit-search-decoration {
   transition: transform 0.1s;
 }
 .creneau-bloc:hover { transform: scale(1.02); z-index: 20; }
+
+/* Créneau annulé : grisé + hachures + badge Annulé */
+.creneau-bloc.annule {
+  background: repeating-linear-gradient(
+    45deg,
+    #cbccc8 0px,
+    #cbccc8 8px,
+    #b8b9b4 8px,
+    #b8b9b4 16px
+  ) !important;
+  color: rgba(60, 60, 60, 0.85) !important;
+  opacity: 0.85;
+}
+.creneau-bloc.annule .bloc-title,
+.creneau-bloc.annule .slot-title {
+  text-decoration: line-through;
+}
+.creneau-bloc.annule::before {
+  content: 'Annulé';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--alert);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  z-index: 5;
+}
 
 /* Slot colors (dégradés) */
 .bg-slot-1 { background: linear-gradient(135deg, var(--slot-1) 0%, var(--brand-dark) 100%); color: #fff; }
