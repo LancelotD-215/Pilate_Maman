@@ -17,9 +17,9 @@
 </div>
 
 {# ==========================================================
-   Tableau des clients (DataTables : search + tri, pas de pagination)
+   VUE DESKTOP — Tableau (DataTables : search + tri)
    ========================================================== #}
-<div class="card">
+<div class="card d-none d-md-block">
     <div class="card-body p-0">
         <table id="tableauClients" class="table mb-0">
             <thead>
@@ -68,6 +68,98 @@
 </div>
 
 {# ==========================================================
+   VUE MOBILE — Cartes empilées + recherche simple
+   ========================================================== #}
+<div class="clients-mobile d-md-none">
+
+    <div class="clients-mobile-search mb-3">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0">
+                <i class="fas fa-search text-muted"></i>
+            </span>
+            <input type="text" id="mobileClientSearch" class="form-control border-start-0"
+                   placeholder="Rechercher un client…" autocomplete="off">
+        </div>
+    </div>
+
+    <div class="clients-cards" id="clientsCards">
+        {% for client in clients %}
+        <div class="client-card"
+             data-search="{{ (client['prenom'] ~ ' ' ~ client['nom'])|lower }}">
+            <div class="client-card-main">
+                <div class="client-card-name">{{ client['prenom'] }} {{ client['nom'] }}</div>
+                <div class="client-card-sub">
+                    <span class="badge
+                        {% if client['seances_restantes'] > 0 %}bg-success
+                        {% elif client['seances_restantes'] == 0 %}bg-warning
+                        {% else %}bg-danger{% endif %}">
+                        {{ client['seances_restantes'] }} séance{% if client['seances_restantes']|abs > 1 %}s{% endif %} restante{% if client['seances_restantes']|abs > 1 %}s{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="client-card-actions">
+                <button type="button" class="btn btn-sm btn-outline-brand btn-voir-fiche"
+                        data-client-id="{{ client['id'] }}">
+                    <i class="fas fa-info-circle"></i> Fiche
+                </button>
+                <button type="button" class="btn btn-sm btn-brand btn-ajout-rapide"
+                        data-id="{{ client['id'] }}"
+                        data-prenom="{{ client['prenom'] }}"
+                        data-nom="{{ client['nom'] }}">
+                    <i class="fas fa-plus"></i> Séances
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="clientsCardsEmpty" class="text-center text-muted fst-italic py-4" style="display:none;">
+        Aucun client trouvé.
+    </div>
+</div>
+
+<style>
+    .client-card {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 10px;
+    }
+    .client-card-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .client-card-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        flex-grow: 1;
+        min-width: 0;
+    }
+    .client-card-sub .badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 10px;
+    }
+    .client-card-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .client-card-actions .btn {
+        flex: 1;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+</style>
+
+{# ==========================================================
    Modale ajout de séances
    ========================================================== #}
 <div class="modal fade" id="modalAjoutSeance" tabindex="-1" aria-hidden="true">
@@ -99,20 +191,40 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Réinit DataTable en désactivant la pagination pour cette page (liste défilable)
-        if ($.fn.DataTable.isDataTable('#tableauClients')) {
-            $('#tableauClients').DataTable().destroy();
+        // ---- DataTable uniquement sur desktop (table cachée en <md) ----
+        var isDesktop = window.matchMedia('(min-width: 768px)').matches;
+        if (isDesktop) {
+            if ($.fn.DataTable.isDataTable('#tableauClients')) {
+                $('#tableauClients').DataTable().destroy();
+            }
+            $('#tableauClients').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json' },
+                lengthChange: false,
+                paging: false,
+                info: false,
+                searching: true,
+                ordering: true,
+                dom: 'frt'
+            });
         }
-        $('#tableauClients').DataTable({
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json' },
-            lengthChange: false,
-            paging: false,       // pas de pagination : une seule grande liste défilante
-            info: false,
-            searching: true,
-            ordering: true,
-            // DOM par défaut : barre de recherche au-dessus du tableau à droite
-            dom: 'frt'
-        });
+
+        // ---- Recherche simple sur les cartes mobile ----
+        var mobileSearch = document.getElementById('mobileClientSearch');
+        var cards = document.querySelectorAll('.client-card');
+        var emptyMsg = document.getElementById('clientsCardsEmpty');
+        if (mobileSearch) {
+            mobileSearch.addEventListener('input', function() {
+                var q = this.value.toLowerCase().trim();
+                var visibleCount = 0;
+                cards.forEach(function(card) {
+                    var text = card.getAttribute('data-search') || '';
+                    var match = !q || text.indexOf(q) !== -1;
+                    card.style.display = match ? '' : 'none';
+                    if (match) visibleCount++;
+                });
+                if (emptyMsg) emptyMsg.style.display = (visibleCount === 0) ? '' : 'none';
+            });
+        }
 
         // Bouton "Ajouter des séances" via modale
         $(document).on('click', '.btn-ajout-rapide', function () {

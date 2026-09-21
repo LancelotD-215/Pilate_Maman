@@ -107,6 +107,168 @@
     .header-jour.is-today {
         color: var(--brand) !important;
     }
+
+    /* --- Badge "Annulé" sur un créneau annulé (mode grille desktop) --- */
+    .creneau-bloc.annule {
+        opacity: 0.55;
+        background-image: repeating-linear-gradient(
+            45deg,
+            rgba(255,255,255,0.15) 0 6px,
+            transparent 6px 12px);
+    }
+    .creneau-bloc.annule::before {
+        content: "Annulé";
+        display: inline-block;
+        background: rgba(0,0,0,0.35);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 1px 6px;
+        border-radius: 999px;
+        margin-bottom: 2px;
+    }
+
+    /* =========================================================
+       VUE MOBILE — Agenda vertical (style Google Agenda mobile)
+       ========================================================= */
+    .agenda-mobile { display: none; }
+
+    @media (max-width: 767.98px) {
+        .agenda-wrapper { display: none; }
+        .agenda-mobile { display: block; }
+    }
+
+    .agenda-mobile .day-section {
+        margin-bottom: 20px;
+    }
+    .agenda-mobile .day-header {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 10px 4px 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 10px;
+    }
+    .agenda-mobile .day-section.is-today .day-header {
+        border-bottom-color: var(--brand);
+    }
+    .agenda-mobile .day-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        text-transform: capitalize;
+    }
+    .agenda-mobile .day-section.is-today .day-name {
+        color: var(--brand);
+    }
+    .agenda-mobile .day-section.is-today .day-name::after {
+        content: "· Aujourd'hui";
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--brand);
+        margin-left: 6px;
+        text-transform: none;
+    }
+    .agenda-mobile .day-date {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .agenda-mobile .day-empty {
+        padding: 12px 4px;
+        font-size: 13px;
+        color: var(--text-muted);
+        font-style: italic;
+    }
+    .agenda-mobile .day-events {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .agenda-mobile .mobile-slot {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 12px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--slot-1);
+        border-radius: 10px;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .agenda-mobile .mobile-slot:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .agenda-mobile .mobile-slot.slot-color-1 { border-left-color: var(--slot-1); }
+    .agenda-mobile .mobile-slot.slot-color-2 { border-left-color: var(--slot-2); }
+    .agenda-mobile .mobile-slot.slot-color-3 { border-left-color: var(--slot-3); }
+    .agenda-mobile .mobile-slot.slot-color-4 { border-left-color: var(--slot-4); }
+    .agenda-mobile .mobile-slot.slot-color-5 { border-left-color: var(--slot-5); }
+    .agenda-mobile .mobile-slot.slot-color-defaut { border-left-color: #6c757d; }
+    .agenda-mobile .mobile-slot.annule {
+        background: var(--surface-alt);
+        border-color: var(--border);
+        border-left-color: var(--text-muted) !important;
+        opacity: 0.75;
+    }
+    .agenda-mobile .mobile-slot.annule .slot-title {
+        text-decoration: line-through;
+        color: var(--text-muted);
+    }
+    .agenda-mobile .slot-time {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        font-family: 'JetBrains Mono', monospace;
+        flex-shrink: 0;
+        min-width: 46px;
+    }
+    .agenda-mobile .slot-body { flex-grow: 1; min-width: 0; }
+    .agenda-mobile .slot-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.25;
+    }
+    .agenda-mobile .slot-meta {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        margin-top: 3px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        align-items: center;
+    }
+    .agenda-mobile .slot-meta .badge-annule-mobile {
+        background: var(--alert-tint);
+        color: var(--alert);
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .agenda-mobile .slot-meta .badge-presents-mobile {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: var(--success-tint);
+        color: var(--success);
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+    }
+    .agenda-mobile .slot-chevron {
+        color: var(--text-muted);
+        font-size: 12px;
+        flex-shrink: 0;
+    }
 </style>
 
 <div class="container-fluid py-3">
@@ -130,6 +292,9 @@
         </div>
     </div>
 
+    {# =========================================================
+       VUE DESKTOP — Grille horaire type semainier
+       ========================================================= #}
     <div class="agenda-wrapper shadow-sm">
         <div class="d-flex border-bottom bg-light">
             <div style="width: 60px; flex-shrink: 0;"></div>
@@ -190,6 +355,73 @@
             </div>
             {% endfor %}
         </div>
+    </div>
+
+    {# =========================================================
+       VUE MOBILE — Agenda vertical par jour
+       (mêmes data-attributes que la grille pour réutiliser la modale)
+       ========================================================= #}
+    <div class="agenda-mobile">
+        {% for jour in semaine %}
+        <section class="day-section {% if jour.is_today %}is-today{% endif %}">
+            <header class="day-header">
+                <span class="day-name">{{ jour.nom }}</span>
+                <span class="day-date">{{ jour.date_courte }}</span>
+            </header>
+
+            {% if jour.creneaux %}
+            <div class="day-events">
+                {% for creneau in jour.creneaux %}
+                    {% set type = creneau.data['type_seance'] %}
+                    {% if 'Cours 1' in type %}{% set couleur_class = 'slot-color-1' %}
+                    {% elif 'Cours 2' in type %}{% set couleur_class = 'slot-color-2' %}
+                    {% elif 'Cours 3' in type %}{% set couleur_class = 'slot-color-3' %}
+                    {% elif 'Cours 4' in type %}{% set couleur_class = 'slot-color-4' %}
+                    {% elif 'Cours 5' in type %}{% set couleur_class = 'slot-color-5' %}
+                    {% else %}{% set couleur_class = 'slot-color-defaut' %}
+                    {% endif %}
+
+                    <button type="button"
+                        class="mobile-slot {{ couleur_class }} {% if creneau.is_annule %}annule{% endif %}"
+                        data-bs-toggle="modal"
+                        data-bs-target="#seanceModal"
+                        data-creneau-id="{{ creneau.data['id'] }}"
+                        data-type="{{ creneau.data['type_seance'] }}"
+                        data-heure="{{ creneau.data['heure_debut'] }}"
+                        data-duree="{{ creneau.data['duree'] }}"
+                        data-date="{{ creneau.date_reelle }}"
+                        data-is-past="{{ 'true' if creneau.is_past else 'false' }}"
+                        data-is-annule="{{ 'true' if creneau.is_annule else 'false' }}"
+                        data-raison-annulation="{{ creneau.raison_annulation or '' }}"
+                        data-clients='{{ creneau.clients | tojson }}'
+                        data-surprises='{{ creneau.surprises | tojson }}'>
+
+                        <div class="slot-time">{{ creneau.data['heure_debut'] }}</div>
+                        <div class="slot-body">
+                            <div class="slot-title">{{ creneau.data['type_seance'] }}</div>
+                            <div class="slot-meta">
+                                <span>{{ creneau.data['duree'] }} min</span>
+                                {% if creneau.is_annule %}
+                                    <span class="badge-annule-mobile">Annulé</span>
+                                {% elif creneau.is_past %}
+                                    <span class="badge-presents-mobile">
+                                        <i class="fas fa-user-check"></i>
+                                        {{ creneau.nb_presents }} présent{% if creneau.nb_presents > 1 %}s{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span>{{ creneau.clients|length }} inscrit{% if creneau.clients|length > 1 %}s{% endif %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right slot-chevron"></i>
+                    </button>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="day-empty">Aucun cours</div>
+            {% endif %}
+        </section>
+        {% endfor %}
     </div>
 </div>
 
