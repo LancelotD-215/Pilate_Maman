@@ -94,10 +94,11 @@ CREATE TABLE historique_seances(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id INTEGER NOT NULL,
     date_heure DATETIME DEFAULT CURRENT_TIMESTAMP,
-    action TEXT NOT NULL,     -- CHECK-IN, PRESENCE_VALIDEE, ADD_SEANCES, NEW_ACCOUNT
+    action TEXT NOT NULL,     -- CHECK-IN, PRESENCE_VALIDEE, ADD_SEANCES, NEW_ACCOUNT, RECTIFICATION
     nombre INTEGER DEFAULT 0, -- nb de séances ajoutées ou utilisées (négatif si utilisées)
     forfait TEXT,             -- pour ADD_SEANCES : 'essai', 'unite', '10', '20', 'autre' (NULL pour les autres actions)
     seance_id INTEGER,
+    annulee INTEGER DEFAULT 0, -- 1 si l'entrée a été annulée (ex: fausse manip de présence)
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     FOREIGN KEY (seance_id) REFERENCES calendrier_seances(id)
 );

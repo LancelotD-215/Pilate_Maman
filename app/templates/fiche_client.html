@@ -27,11 +27,13 @@
                         <div class="display-3 fw-bold {{ 'text-success' if client['seances_restantes'] > 0 else 'text-danger' }}">
                             {{ client['seances_restantes'] }}
                         </div>
+                        {# Crayon : ouvre la modale (ajout OU retrait de séances) #}
                         <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill btn-ajout-rapide-fiche"
                             data-id="{{ client['id'] }}"
                             data-prenom="{{ client['prenom'] }}"
-                            data-nom="{{ client['nom'] }}">
-                                <i class="fas fa-plus"></i>
+                            data-nom="{{ client['nom'] }}"
+                            title="Modifier le solde de séances">
+                                <i class="fas fa-pen-to-square"></i>
                         </button>
                     </div>
                     <span class="badge bg-light text-dark border">Total utilisé : {{ client['total_seances_faites'] }}</span>
@@ -46,15 +48,15 @@
                 <div class="card-header bg-slot-5 text-white">
                     {% if inscriptions %}
                         <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Inscriptions récurrentes</h5>
-                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editInscriptionsBtn">
+                            <h5 class="mb-0">Inscriptions</h5>
+                            <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm btn-modif-inscriptions" id="editInscriptionsBtn">
                                 <i class="fas fa-pen-to-square"></i>
                             </button>
                         </div>
                     {% else %}
                         <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Inscriptions récurrentes</h5>
-                            <button type="button" class="btn btn-sm btn-outline-light shadow-sm btn-modif-inscriptions" id="editInscriptionsBtn">
+                            <h5 class="mb-0">Inscriptions</h5>
+                            <button type="button" class="btn btn-sm btn-outline-secondary shadow-sm btn-modif-inscriptions" id="editInscriptionsBtn">
                                 <i class="fas fa-pen-to-square"></i>
                             </button>
                         </div>
@@ -64,12 +66,18 @@
                     {% if inscriptions %}
                         <ul class="list-group list-group-flush">
                             {% for hab in inscriptions %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                            <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
                                 <strong>{{ jours[hab['jour_semaine']] }}</strong>
                                 <span>{{ hab['heure_debut'] }}</span>
                                 <span class="badge bg-secondary">{{ hab['type_seance'] }}</span>
                                 {% if hab.frequence == 'bimensuel' %}
                                 <span class="badge" style="background: var(--warning-tint); color: var(--warning);">1 sem/2</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill btn-swap-bimensuel"
+                                        data-client-id="{{ client['id'] }}"
+                                        data-creneau-id="{{ hab['id'] }}"
+                                        title="Inverser la semaine (A ↔ B)">
+                                    <i class="fas fa-right-left"></i>
+                                </button>
                                 {% endif %}
                             </li>
                             {% endfor %}
@@ -88,11 +96,14 @@
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for event in historique %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2 {% if event['annulee'] %}entry-annulee{% endif %}">
                         <small class="text-muted">{{ event['date_heure'] | format_datetime }}</small>
-                        
+
                         {% if event['action'] == 'CHECK-IN' %}
-                            <span class="text-dark">Séance effectuée</span>
+                            <span class="text-dark">
+                                Séance effectuée
+                                {% if event['annulee'] %}<small style="color: var(--alert); font-weight: 600;">· Annulée</small>{% endif %}
+                            </span>
                             <span class="badge bg-light text-dark border">{{ event['nombre'] }}</span>
                         {% elif event['action'] == 'ADD_SEANCES' %}
                             <span class="text-success fw-bold">
@@ -116,8 +127,16 @@
                             </span>
                             <span class="badge bg-success">+{{ event['nombre'] }}</span>
                         {% elif event['action'] == 'PRESENCE_VALIDEE' %}
-                            <span class="text-warning">Présence validée</span>
+                            <span class="text-warning">
+                                Présence validée
+                                {% if event['annulee'] %}<small style="color: var(--alert); font-weight: 600;">· Annulée</small>{% endif %}
+                            </span>
                             <span class="badge bg-light text-dark border">{{ event['nombre'] }}</span>
+                        {% elif event['action'] == 'RECTIFICATION' %}
+                            <span class="text-secondary fw-bold">Rectification</span>
+                            <span class="badge {{ 'bg-danger' if event['nombre'] < 0 else 'bg-success' }}">
+                                {{ '+' if event['nombre'] > 0 else '' }}{{ event['nombre'] }}
+                            </span>
                         {% else %}
                             <span>{{ event['action'] }}</span>
                             <span class="badge bg-secondary">{{ event['nombre'] }}</span>
@@ -143,30 +162,54 @@
 
 </div>
 
-<!-- Modal pour ajout de séances -->
+<!-- Modal pour modifier le solde (ajout OU retrait de séances) -->
 <div class="modal fade" id="modalAjoutSeanceFiche" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form action="/ajout_seances_rapide" method="POST">
-          
+      <form id="formModifSolde" action="/ajout_seances_rapide" method="POST">
+
         <div class="modal-header bg-light">
-          <h5 class="modal-title">Ajouter des séances</h5>
+          <h5 class="modal-title">Modifier le solde</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        
+
         <div class="modal-body">
             <div class="mb-4 text-center">
-                    <p class="text-center">Ajout de séances pour :</p>
+                    <p class="text-center">Modification du solde pour :</p>
                     <h3 id="modalClientNomFiche" class="text-primary fw-bold mb-0"></h3>
             </div>
-          
+
           <input type="hidden" name="client_id" id="inputClientIdFiche">
           <input type="hidden" name="origine" value="fiche_client">
 
           <hr>
 
+          {# --- Section 1 : Ajout (choix du forfait) --- #}
           <label class="form-label">Choisir le forfait</label>
-          {{ m.pack_selector(default='10', uid='fc') }}
+          <div id="ajoutSection">
+            {{ m.pack_selector(default='10', uid='fc') }}
+          </div>
+
+          {# --- Section 2 : Retrait (case à cocher + nombre) --- #}
+          <div class="mt-4 pt-3" style="border-top: 1px dashed var(--border);">
+            <label class="form-label">Retrait de séance</label>
+            <div id="retraitSection" style="background: var(--surface-alt); padding: 12px 14px; border-radius: 10px;">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="checkRetraitMode">
+                <label class="form-check-label" for="checkRetraitMode">
+                    Retirer des séances
+                </label>
+              </div>
+              <div id="retraitNombreZone" class="mt-3" style="display: none;">
+                <label class="form-label small">Nombre de séances à retirer</label>
+                <div class="input-group" style="max-width: 200px;">
+                    <span class="input-group-text">−</span>
+                    <input type="number" class="form-control text-center" id="inputRetraitNb" value="1" min="1">
+                    <span class="input-group-text">séance(s)</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="modal-footer">
@@ -270,6 +313,16 @@
   </div>
 </div>
 
+<style>
+    /* Entrée annulée dans l'historique : barrée + grisée */
+    .entry-annulee { opacity: 0.55; }
+    .entry-annulee > span:not(.badge) { text-decoration: line-through; }
+    .entry-annulee .badge { text-decoration: line-through; }
+
+    /* Section ajout grisée quand mode retrait actif */
+    .ajout-disabled { opacity: 0.35; pointer-events: none; filter: grayscale(0.4); }
+</style>
+
 <!-- Modal de confirmation de suppression du client -->
 <div class="modal fade" id="modalSupprimerClient" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -355,6 +408,68 @@
         // Le bouton de confirmation n'est actif que si la case est cochée
         $(document).on('change', '#confirmDeleteCheck', function () {
             $('#confirmDeleteBtn').prop('disabled', !this.checked);
+        });
+
+        // ============================================================
+        // Modale "Modifier le solde" : bascule ajout ⇄ retrait
+        // ============================================================
+        function resetModalModifSolde() {
+            $('#checkRetraitMode').prop('checked', false);
+            $('#retraitNombreZone').hide();
+            $('#ajoutSection').removeClass('ajout-disabled');
+            $('#inputRetraitNb').val(1);
+        }
+
+        // Réinit quand on ouvre la modale
+        var elModal = document.getElementById('modalAjoutSeanceFiche');
+        if (elModal) {
+            elModal.addEventListener('show.bs.modal', resetModalModifSolde);
+        }
+
+        // Toggle : activer le mode retrait grise la section ajout
+        $(document).on('change', '#checkRetraitMode', function() {
+            var isRetrait = this.checked;
+            $('#retraitNombreZone').toggle(isRetrait);
+            $('#ajoutSection').toggleClass('ajout-disabled', isRetrait);
+        });
+
+        // Interception du submit : si mode retrait, redirige vers /rectifier_seances
+        $(document).on('submit', '#formModifSolde', function(e) {
+            if (!$('#checkRetraitMode').is(':checked')) {
+                return;   // ajout classique → passe au backend /ajout_seances_rapide
+            }
+            e.preventDefault();
+            var absVal = parseInt(document.getElementById('inputRetraitNb').value, 10);
+            if (isNaN(absVal) || absVal < 1) { alert('Nombre invalide'); return; }
+
+            var fd = new FormData();
+            fd.append('client_id', document.getElementById('inputClientIdFiche').value);
+            fd.append('delta', String(-absVal));
+
+            fetch('/rectifier_seances', { method: 'POST', body: fd, redirect: 'manual' })
+                .then(function() { location.reload(); })
+                .catch(function() { alert('Erreur réseau'); });
+        });
+
+        // ============================================================
+        // Bouton swap bimensuel : inverse la semaine A/B
+        // ============================================================
+        $(document).on('click', '.btn-swap-bimensuel', function() {
+            if (!confirm('Inverser la semaine (A ↔ B) pour cette inscription bimensuelle ?')) return;
+            var btn = this;
+            var fd = new FormData();
+            fd.append('client_id', $(btn).data('client-id'));
+            fd.append('creneau_id', $(btn).data('creneau-id'));
+            fetch('/swap_bimensuel', { method: 'POST', body: fd })
+                .then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(function(data) {
+                    if (data.ok) location.reload();
+                    else alert('Erreur');
+                })
+                .catch(function(err) { alert('Erreur réseau : ' + err.message); });
         });
     });
 </script>

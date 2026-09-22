@@ -597,7 +597,7 @@ def fiche_client(client_id):
 
     # récupération de l'historique des séances du client (10 dernières actions)
     historique = connection.execute('''
-        SELECT date_heure, action, nombre, forfait
+        SELECT date_heure, action, nombre, forfait, annulee
         FROM historique_seances
         WHERE client_id = ?
         ORDER BY date_heure DESC
@@ -694,6 +694,7 @@ def planning():
         JOIN clients c ON h.client_id = c.id
         WHERE h.date_heure >= ? AND h.date_heure < ?
           AND h.action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+          AND (h.annulee = 0 OR h.annulee IS NULL)
     ''', (start_sql, end_sql)).fetchall()
 
     connection.close()
@@ -992,11 +993,8 @@ def annuler_prevu():
 @app.route('/marquer_presence', methods=['POST'])
 def marquer_presence():
     """
-    Fonction exécutée lors de l'accès à la page '/marquer_presence'.
-    Args:
-        None
-    Returns:
-        str: redirection vers la page de planning.
+    Marque un client comme présent à une séance.
+    Débite -1 séance, ajoute une ligne PRESENCE_VALIDEE dans l'historique.
     """
     client_id = request.form['client_id']
     date_seance = request.form['date_seance'] # Format YYYY-MM-DD
@@ -1021,6 +1019,110 @@ def marquer_presence():
 
     # On recharge la page planning (on essaie de rester sur la même semaine si possible)
     return redirect(request.referrer or url_for('planning'))
+
+
+@app.route('/annuler_presence', methods=['POST'])
+def annuler_presence():
+    """
+    Annule un pointage de présence (fausse manip) : recrédite +1 séance,
+    décrémente total_seances_faites, et FLAG l'entrée historique comme
+    annulée (annulee=1) au lieu de la supprimer — pour trace.
+
+    Cherche l'entree PRESENCE_VALIDEE ou CHECK-IN la plus recente pour
+    (client_id, date_seance) qui n'est pas deja annulee.
+    """
+    from flask import jsonify
+
+    client_id = int(request.form['client_id'])
+    date_seance = request.form['date_seance']  # YYYY-MM-DD
+
+    connection = get_db_connection()
+
+    # Trouve la derniere entree de presence pour ce client/date, non annulee
+    row = connection.execute('''
+        SELECT id FROM historique_seances
+        WHERE client_id = ?
+          AND DATE(date_heure) = ?
+          AND action IN ('PRESENCE_VALIDEE', 'CHECK-IN')
+          AND (annulee = 0 OR annulee IS NULL)
+        ORDER BY date_heure DESC, id DESC
+        LIMIT 1
+    ''', (client_id, date_seance)).fetchone()
+
+    if not row:
+        connection.close()
+        return jsonify({'ok': False, 'error': 'Aucune presence a annuler'}), 404
+
+    # Flagger l'entree comme annulee + recrediter le solde
+    connection.execute('UPDATE historique_seances SET annulee = 1 WHERE id = ?', (row['id'],))
+    connection.execute(
+        'UPDATE clients SET seances_restantes = seances_restantes + 1, '
+        'total_seances_faites = total_seances_faites - 1 WHERE id = ?',
+        (client_id,)
+    )
+
+    # Recupere le nouveau solde pour retour immediat cote UI
+    new_solde_row = connection.execute(
+        'SELECT seances_restantes FROM clients WHERE id = ?', (client_id,)
+    ).fetchone()
+
+    connection.commit()
+    connection.close()
+
+    return jsonify({'ok': True, 'nouveau_solde': new_solde_row['seances_restantes']})
+
+
+@app.route('/rectifier_seances', methods=['POST'])
+def rectifier_seances():
+    """
+    Rectifie manuellement le solde de séances d'un client (positif ou négatif),
+    sans lien avec une date de cours. Historisé comme action RECTIFICATION.
+    """
+    client_id = int(request.form['client_id'])
+    delta = int(request.form['delta'])   # peut etre negatif
+
+    if delta == 0:
+        return redirect(request.referrer or url_for('gestion_clients'))
+
+    current_time = datetime.now(paris_tz).strftime('%Y-%m-%d %H:%M:%S')
+
+    connection = get_db_connection()
+    connection.execute(
+        'UPDATE clients SET seances_restantes = seances_restantes + ? WHERE id = ?',
+        (delta, client_id)
+    )
+    connection.execute(
+        'INSERT INTO historique_seances (client_id, action, nombre, date_heure) VALUES (?, ?, ?, ?)',
+        (client_id, 'RECTIFICATION', delta, current_time)
+    )
+    connection.commit()
+    connection.close()
+
+    return redirect(request.referrer or url_for('fiche_client', client_id=client_id))
+
+
+@app.route('/swap_bimensuel', methods=['POST'])
+def swap_bimensuel():
+    """
+    Inverse la parite d'une inscription bimensuelle (decale date_debut de 7 jours)
+    pour passer de la semaine A a la semaine B.
+    """
+    from flask import jsonify
+
+    client_id = int(request.form['client_id'])
+    creneau_id = int(request.form['creneau_id'])
+
+    connection = get_db_connection()
+    # On decale de 7 jours en avant : la semaine active change
+    connection.execute('''
+        UPDATE inscriptions
+        SET date_debut = DATE(date_debut, '+7 days')
+        WHERE client_id = ? AND creneau_id = ? AND frequence = 'bimensuel'
+    ''', (client_id, creneau_id))
+    connection.commit()
+    connection.close()
+
+    return jsonify({'ok': True})
 
 
 

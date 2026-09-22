@@ -58,6 +58,7 @@ def get_best_clients(since_date, until_date):
         FROM historique_seances h
         JOIN clients c ON h.client_id = c.id
         WHERE h.action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+        AND (h.annulee = 0 OR h.annulee IS NULL)
         AND DATE(h.date_heure) BETWEEN ? AND ?
         GROUP BY c.id
         ORDER BY seances_utilisees DESC
@@ -112,9 +113,10 @@ def get_number_seances(since_date, until_date):
         SELECT date_heure
         FROM historique_seances
         WHERE action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+        AND (annulee = 0 OR annulee IS NULL)
         AND DATE(date_heure) BETWEEN ? AND ?
     """
-    
+
     checkins = connection.execute(query_checkins, (since_date, until_date)).fetchall()
     
     if not checkins:
@@ -184,19 +186,29 @@ def get_negative_seances_clients():
 
 def get_zero_clients():
     """
-    Fonction pour récupérer la liste des clients avec un solde de séances à zéro.
-    Args:
-        None
+    Liste des clients à 0 séance qui devraient racheter un forfait.
+
+    On EXCLUT les clients qui n'ont acheté que des forfaits essai/unité :
+    ceux-là paient au coup par coup et sont naturellement toujours à 0.
+    On garde uniquement ceux qui ont déjà acheté au moins un forfait 10 ou 20
+    (via ADD_SEANCES ou NEW_ACCOUNT).
+
     Returns:
-        list: liste des clients avec un solde de séances à zéro.
+        list: clients à 0 séance filtrés (uniquement les habitués aux forfaits 10/20).
     """
     connection = get_db_connection()
 
     query = """
-        SELECT id, prenom, nom, seances_restantes
-        FROM clients
-        WHERE seances_restantes = 0
-        ORDER BY nom ASC, prenom ASC
+        SELECT c.id, c.prenom, c.nom, c.seances_restantes
+        FROM clients c
+        WHERE c.seances_restantes = 0
+          AND EXISTS (
+              SELECT 1 FROM historique_seances h
+              WHERE h.client_id = c.id
+                AND h.action IN ('ADD_SEANCES', 'NEW_ACCOUNT')
+                AND h.forfait IN ('10', '20')
+          )
+        ORDER BY c.nom ASC, c.prenom ASC
     """
 
     results = connection.execute(query).fetchall()
@@ -218,8 +230,9 @@ def client_not_comming(since_date, until_date):
     query = """
         SELECT c.id, c.prenom, c.nom
         FROM clients c
-        LEFT JOIN historique_seances h ON c.id = h.client_id 
-            AND h.action IN ('CHECK-IN', 'PRESENCE_VALIDEE') 
+        LEFT JOIN historique_seances h ON c.id = h.client_id
+            AND h.action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+            AND (h.annulee = 0 OR h.annulee IS NULL)
             AND DATE(h.date_heure) BETWEEN ? AND ?
         WHERE h.id IS NULL
         ORDER BY c.nom ASC, c.prenom ASC
@@ -443,6 +456,7 @@ def get_presents_vs_inscrits(now, n_weeks=4, top=6):
                 SELECT DISTINCT client_id, date_heure
                 FROM historique_seances
                 WHERE action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+                  AND (annulee = 0 OR annulee IS NULL)
                   AND DATE(date_heure) = ?
             ''', (date_str,)).fetchall()
 
@@ -526,6 +540,7 @@ def get_suggestions_inscription(now, min_consecutive=4, weeks_lookback=6):
                 FROM historique_seances h
                 JOIN clients c ON h.client_id = c.id
                 WHERE h.action IN ('CHECK-IN', 'PRESENCE_VALIDEE')
+                  AND (h.annulee = 0 OR h.annulee IS NULL)
                   AND DATE(h.date_heure) = ?
             ''', (date_str,)).fetchall()
 

@@ -533,6 +533,27 @@
     align-items: center;
     gap: 4px;
   }
+  /* Version cliquable du badge Présent (pour annuler une fausse manip) */
+  .badge-present-clickable {
+    background: var(--success-tint);
+    color: var(--success);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .badge-present-clickable:hover {
+    background: var(--alert-tint);
+    color: var(--alert);
+    border-color: var(--alert);
+    text-decoration: line-through;
+  }
   .badge-noshow {
     background: var(--alert-tint);
     color: var(--alert);
@@ -540,6 +561,11 @@
     border-radius: 999px;
     font-size: 11px;
     font-weight: 700;
+  }
+  /* Solde à 0 ou négatif : mis en évidence en rouge */
+  .client-meta-alert {
+    color: var(--alert) !important;
+    font-weight: 700 !important;
   }
   .badge-warning-mini {
     background: var(--warning);
@@ -691,40 +717,50 @@
         if (client.no_show) row.classList.add('no-show');
 
         var pluriel = (Math.abs(effectiveSolde) > 1) ? 's' : '';
+        var soldeClass = (effectiveSolde <= 0) ? 'client-meta client-meta-alert' : 'client-meta';
         var infoHtml =
             '<div>' +
                 '<div class="client-name">' + client.nom +
-                    (client.no_show ? ' <span class="badge-noshow">no-show</span>' : '') +
+                    (client.no_show ? ' <span class="badge-noshow">Absent</span>' : '') +
                 '</div>' +
-                '<div class="client-meta">' + effectiveSolde + ' séance' + pluriel + ' restante' + pluriel + '</div>' +
+                '<div class="' + soldeClass + '">' + effectiveSolde + ' séance' + pluriel + ' restante' + pluriel + '</div>' +
             '</div>';
 
         var actionsHtml = '<div class="actions">';
 
-        if (effectivePresent) {
-            // Déjà présent (persisté OU marqué dans cette session)
-            actionsHtml += '<span class="badge-present"><i class="fas fa-check"></i> Présent</span>';
+        // --- Logique des boutons selon passé/futur ---
+        // Passé ou en cours : uniquement "Marquer présent" / "Présent" (cliquable pour annuler)
+        // Futur : uniquement "Prévu" (marquer présent n'a pas de sens pour un cours à venir)
+        if (opts.isPast) {
+            if (effectivePresent) {
+                // "Présent" cliquable → clic = annuler la présence (fausse manip)
+                actionsHtml += '<button type="button" class="badge-present-clickable" ' +
+                    'data-action="annuler-presence" ' +
+                    'data-client-id="' + client.id + '" ' +
+                    'data-date="' + opts.dateReelle + '" ' +
+                    'title="Cliquer pour annuler (fausse manip)">' +
+                    '<i class="fas fa-check"></i> Présent</button>';
+            } else {
+                actionsHtml += '<button type="button" class="btn-presence-pill" ' +
+                    'data-action="marquer-presence" ' +
+                    'data-client-id="' + client.id + '" ' +
+                    'data-solde="' + effectiveSolde + '" ' +
+                    'data-date="' + opts.dateReelle + '" ' +
+                    'data-heure="' + opts.heureReelle + '">' +
+                    '<i class="fas fa-check"></i> Marquer présent</button>';
+            }
         } else {
-            // Bouton "Marquer présent" (gros bouton, action principale)
-            actionsHtml += '<button type="button" class="btn-presence-pill" ' +
-                'data-action="marquer-presence" ' +
-                'data-client-id="' + client.id + '" ' +
-                'data-solde="' + effectiveSolde + '" ' +
-                'data-date="' + opts.dateReelle + '" ' +
-                'data-heure="' + opts.heureReelle + '">' +
-                '<i class="fas fa-check"></i> Marquer présent</button>';
-        }
-
-        // Petite pilule "Prévu" (uniquement pour cours à venir, pas pour surprises)
-        if (!opts.isPast && kind !== 'surprise') {
-            var isPrevuActive = effectivePrevu ? 'active' : '';
-            var prevuLabel = effectivePrevu ? '<i class="fas fa-star"></i> Prévu' : '<i class="far fa-star"></i> Prévu';
-            actionsHtml += '<button type="button" class="btn-prevu-pill ' + isPrevuActive + '" ' +
-                'data-action="toggle-prevu" ' +
-                'data-client-id="' + client.id + '" ' +
-                'data-creneau-id="' + opts.creneauId + '" ' +
-                'data-date="' + opts.dateReelle + '" ' +
-                'data-heure="' + opts.heureReelle + '">' + prevuLabel + '</button>';
+            // Futur : bouton Prévu (sauf surprises qui n'existent pas au futur)
+            if (kind !== 'surprise') {
+                var isPrevuActive = effectivePrevu ? 'active' : '';
+                var prevuLabel = effectivePrevu ? '<i class="fas fa-star"></i> Prévu' : '<i class="far fa-star"></i> Prévu';
+                actionsHtml += '<button type="button" class="btn-prevu-pill ' + isPrevuActive + '" ' +
+                    'data-action="toggle-prevu" ' +
+                    'data-client-id="' + client.id + '" ' +
+                    'data-creneau-id="' + opts.creneauId + '" ' +
+                    'data-date="' + opts.dateReelle + '" ' +
+                    'data-heure="' + opts.heureReelle + '">' + prevuLabel + '</button>';
+            }
         }
 
         actionsHtml += '</div>';
@@ -770,6 +806,40 @@
         var meta = row.querySelector('.client-meta');
         var pluriel = (Math.abs(newSolde) > 1) ? 's' : '';
         if (meta) meta.textContent = newSolde + ' séance' + pluriel + ' restante' + pluriel;
+    }
+
+    // ============================================================
+    // Handler AJAX pour ANNULER une présence (fausse manip)
+    // ============================================================
+    function annulerPresenceAjax(button) {
+        if (!confirm('Annuler la validation de présence de ce client ? Le solde de séance sera recrédité.')) return;
+
+        var clientId = button.dataset.clientId;
+        var date = button.dataset.date;
+
+        // Purger l'état local (pour que le bouton "Marquer présent" réapparaisse)
+        Object.keys(markedPresent).forEach(function(k) {
+            if (k.indexOf(clientId + '|' + date + '|') === 0) delete markedPresent[k];
+        });
+
+        var fd = new FormData();
+        fd.append('client_id', clientId);
+        fd.append('date_seance', date);
+
+        fetch('/annuler_presence', { method: 'POST', body: fd })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function(data) {
+                if (data.ok) {
+                    if (data.nouveau_solde !== undefined) soldesModifies[clientId] = data.nouveau_solde;
+                    location.reload();
+                } else {
+                    alert('Erreur : ' + (data.error || 'inconnue'));
+                }
+            })
+            .catch(function(err) { alert('Erreur réseau : ' + err.message); });
     }
 
     // ============================================================
@@ -928,6 +998,7 @@
             if (!btn) return;
             var action = btn.dataset.action;
             if (action === 'marquer-presence') validerPresenceAjax(btn);
+            else if (action === 'annuler-presence') annulerPresenceAjax(btn);
             else if (action === 'toggle-prevu') togglePrevuAjax(btn);
             else if (action === 'annuler-cours') annulerCoursAjax(btn);
             else if (action === 'reactiver-cours') desannulerCoursAjax(btn);
