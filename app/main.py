@@ -1101,6 +1101,24 @@ def rectifier_seances():
     return redirect(request.referrer or url_for('fiche_client', client_id=client_id))
 
 
+@app.route('/save_notes', methods=['POST'])
+def save_notes():
+    """
+    Sauvegarde le contenu du champ `notes` d'un client (appel AJAX depuis la fiche).
+    """
+    from flask import jsonify
+
+    client_id = int(request.form['client_id'])
+    notes = request.form.get('notes', '')   # texte libre
+
+    connection = get_db_connection()
+    connection.execute('UPDATE clients SET notes = ? WHERE id = ?', (notes, client_id))
+    connection.commit()
+    connection.close()
+
+    return jsonify({'ok': True})
+
+
 @app.route('/swap_bimensuel', methods=['POST'])
 def swap_bimensuel():
     """

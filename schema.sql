@@ -27,7 +27,8 @@ CREATE TABLE clients(
     email TEXT,
     seances_restantes INTEGER DEFAULT 0,
     total_seances_faites INTEGER DEFAULT 0,
-    abonnement INTEGER DEFAULT 0
+    abonnement INTEGER DEFAULT 0,
+    notes TEXT DEFAULT ''    -- Notes libres saisies dans la fiche client
 );
 
 -- Création de la table des créneaux types de la semaine

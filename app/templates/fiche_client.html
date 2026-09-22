@@ -36,7 +36,7 @@
                                 <i class="fas fa-pen-to-square"></i>
                         </button>
                     </div>
-                    <span class="badge bg-light text-dark border">Total utilisé : {{ client['total_seances_faites'] }}</span>
+                    <span class="badge bg-light text-dark border">Séances faites : {{ client['total_seances_faites'] }}</span>
                 </div>
             </div>
         </div>
@@ -91,8 +91,27 @@
 
         <div class="col-md-6 mb-4">
             <div class="card h-100 shadow-sm">
+                <div class="card-header bg-slot-5 text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Notes</h5>
+                    <span id="notesStatus" class="small" style="color: rgba(255,255,255,0.75); font-style: italic;"></span>
+                </div>
+                <div class="card-body">
+                    <textarea id="clientNotes"
+                              class="form-control"
+                              rows="8"
+                              style="resize: vertical; min-height: 100px;"
+                              data-client-id="{{ client['id'] }}">{{ client['notes'] or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Historique d'activité en pleine largeur --- #}
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
                 <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Historique D'activité</h5>
+                    <h5 class="mb-0">Historique d'activité</h5>
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for event in historique %}
@@ -450,6 +469,48 @@
                 .then(function() { location.reload(); })
                 .catch(function() { alert('Erreur réseau'); });
         });
+
+        // ============================================================
+        // Notes : sauvegarde automatique (debounce 800ms après dernière frappe)
+        // ============================================================
+        (function() {
+            var textarea = document.getElementById('clientNotes');
+            if (!textarea) return;
+            var statusEl = document.getElementById('notesStatus');
+            var timer = null;
+            var lastSaved = textarea.value;
+
+            function setStatus(txt, timeout) {
+                if (statusEl) statusEl.textContent = txt;
+                if (timeout) setTimeout(function() { if (statusEl.textContent === txt) statusEl.textContent = ''; }, timeout);
+            }
+
+            function saveNotes() {
+                var current = textarea.value;
+                if (current === lastSaved) return;
+                setStatus('Enregistrement…');
+                var fd = new FormData();
+                fd.append('client_id', textarea.dataset.clientId);
+                fd.append('notes', current);
+                fetch('/save_notes', { method: 'POST', body: fd })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.ok) { lastSaved = current; setStatus('Enregistré ✓', 1500); }
+                        else setStatus('Erreur');
+                    })
+                    .catch(function() { setStatus('Erreur réseau'); });
+            }
+
+            textarea.addEventListener('input', function() {
+                clearTimeout(timer);
+                timer = setTimeout(saveNotes, 800);
+            });
+            // sauvegarde immédiate si l'utilisateur quitte le champ
+            textarea.addEventListener('blur', function() {
+                clearTimeout(timer);
+                saveNotes();
+            });
+        })();
 
         // ============================================================
         // Bouton swap bimensuel : inverse la semaine A/B
