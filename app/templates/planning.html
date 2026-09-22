@@ -317,9 +317,10 @@
                 {% for creneau in jour.creneaux %}
 
                     {# Mapping type_seance -> couleur.
-                       Adapter à volonté quand les vrais types de cours seront connus. #}
+                       "Pilates Stretching" a sa propre couleur pour se distinguer d'un Pilates classique. #}
                     {% set type = creneau.data['type_seance'] %}
-                    {% if 'Cours 1' in type %}{% set couleur_class = 'bg-slot-1' %}
+                    {% if 'Stretching' in type %}{% set couleur_class = 'bg-slot-2' %}
+                    {% elif 'Cours 1' in type %}{% set couleur_class = 'bg-slot-1' %}
                     {% elif 'Cours 2' in type %}{% set couleur_class = 'bg-slot-2' %}
                     {% elif 'Cours 3' in type %}{% set couleur_class = 'bg-slot-3' %}
                     {% elif 'Cours 4' in type %}{% set couleur_class = 'bg-slot-4' %}
@@ -373,7 +374,8 @@
             <div class="day-events">
                 {% for creneau in jour.creneaux %}
                     {% set type = creneau.data['type_seance'] %}
-                    {% if 'Cours 1' in type %}{% set couleur_class = 'slot-color-1' %}
+                    {% if 'Stretching' in type %}{% set couleur_class = 'slot-color-2' %}
+                    {% elif 'Cours 1' in type %}{% set couleur_class = 'slot-color-1' %}
                     {% elif 'Cours 2' in type %}{% set couleur_class = 'slot-color-2' %}
                     {% elif 'Cours 3' in type %}{% set couleur_class = 'slot-color-3' %}
                     {% elif 'Cours 4' in type %}{% set couleur_class = 'slot-color-4' %}
