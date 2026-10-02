@@ -57,6 +57,10 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 # On est en prod si FLASK_ENV=production dans le .env, sinon en dev (par défaut)
 IS_PROD = os.environ.get('FLASK_ENV') == 'production'
+
+# Combien de minutes avant le début d'un cours le pointage des présences s'ouvre
+# (dans la modale du planning : le bouton "Prévu" laisse la place à "Marquer présent")
+POINTAGE_AVANCE_MINUTES = 30
 # ============================================================
 
 
@@ -779,6 +783,9 @@ def planning():
             course_dt_naive = datetime.combine(jour_date.date(), datetime.strptime(creneau['heure_debut'], '%H:%M').time())
             course_dt = paris_tz.localize(course_dt_naive)
             is_past = course_dt <= now_paris
+            # Le pointage s'ouvre un peu avant le début du cours : à partir de ce
+            # moment-là on ne note plus qui est prévu, on note qui est présent.
+            is_pointage_ouvert = (course_dt - timedelta(minutes=POINTAGE_AVANCE_MINUTES)) <= now_paris
 
             # Inscrits de ce créneau
             raw_clients = clients_par_creneau.get(creneau['id'], [])
@@ -842,6 +849,7 @@ def planning():
                 'clients': final_clients,
                 'surprises': surprises,
                 'is_past': is_past,
+                'is_pointage_ouvert': is_pointage_ouvert,
                 'is_annule': is_annule,
                 'raison_annulation': raison_annulation,
                 'nb_presents': nb_presents,
@@ -934,7 +942,8 @@ def desannuler_cours():
 def marquer_prevu():
     """
     Flagge un client comme "prévu" pour un cours à une date précise.
-    Refusé si la date/heure du cours est dans le passé.
+    Refusé dès que le pointage des présences est ouvert
+    (POINTAGE_AVANCE_MINUTES avant le début du cours).
     Retourne JSON pour permettre un appel AJAX depuis la modale du planning.
     """
     from flask import jsonify
@@ -951,8 +960,8 @@ def marquer_prevu():
     except ValueError:
         return jsonify({'ok': False, 'error': 'Date/heure invalide'}), 400
 
-    if cours_dt <= datetime.now(paris_tz):
-        return jsonify({'ok': False, 'error': 'Impossible de marquer un cours passé comme prévu'}), 400
+    if (cours_dt - timedelta(minutes=POINTAGE_AVANCE_MINUTES)) <= datetime.now(paris_tz):
+        return jsonify({'ok': False, 'error': 'Trop tard pour marquer ce cours comme prévu'}), 400
 
     connection = get_db_connection()
     try:

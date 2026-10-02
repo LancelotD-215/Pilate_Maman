@@ -337,7 +337,7 @@
                         data-heure="{{ creneau.data['heure_debut'] }}"
                         data-duree="{{ creneau.data['duree'] }}"
                         data-date="{{ creneau.date_reelle }}"
-                        data-is-past="{{ 'true' if creneau.is_past else 'false' }}"
+                        data-pointage-ouvert="{{ 'true' if creneau.is_pointage_ouvert else 'false' }}"
                         data-is-annule="{{ 'true' if creneau.is_annule else 'false' }}"
                         data-raison-annulation="{{ creneau.raison_annulation or '' }}"
                         data-clients='{{ creneau.clients | tojson }}'
@@ -392,7 +392,7 @@
                         data-heure="{{ creneau.data['heure_debut'] }}"
                         data-duree="{{ creneau.data['duree'] }}"
                         data-date="{{ creneau.date_reelle }}"
-                        data-is-past="{{ 'true' if creneau.is_past else 'false' }}"
+                        data-pointage-ouvert="{{ 'true' if creneau.is_pointage_ouvert else 'false' }}"
                         data-is-annule="{{ 'true' if creneau.is_annule else 'false' }}"
                         data-raison-annulation="{{ creneau.raison_annulation or '' }}"
                         data-clients='{{ creneau.clients | tojson }}'
@@ -730,10 +730,11 @@
 
         var actionsHtml = '<div class="actions">';
 
-        // --- Logique des boutons selon passé/futur ---
-        // Passé ou en cours : uniquement "Marquer présent" / "Présent" (cliquable pour annuler)
-        // Futur : uniquement "Prévu" (marquer présent n'a pas de sens pour un cours à venir)
-        if (opts.isPast) {
+        // --- Logique des boutons selon l'ouverture du pointage ---
+        // Pointage ouvert (30 min avant le début, puis pendant et après le cours) :
+        //   uniquement "Marquer présent" / "Présent" (cliquable pour annuler)
+        // Avant : uniquement "Prévu" (marquer présent n'a pas encore de sens)
+        if (opts.pointageOuvert) {
             if (effectivePresent) {
                 // "Présent" cliquable → clic = annuler la présence (fausse manip)
                 actionsHtml += '<button type="button" class="badge-present-clickable" ' +
@@ -752,7 +753,7 @@
                     '<i class="fas fa-check"></i> Marquer présent</button>';
             }
         } else {
-            // Futur : bouton Prévu (sauf surprises qui n'existent pas au futur)
+            // Cours à venir : bouton Prévu (sauf surprises qui n'existent pas au futur)
             if (kind !== 'surprise') {
                 var isPrevuActive = effectivePrevu ? 'active' : '';
                 var prevuLabel = effectivePrevu ? '<i class="fas fa-star"></i> Prévu' : '<i class="far fa-star"></i> Prévu';
@@ -906,7 +907,7 @@
             var heure = button.getAttribute('data-heure');
             var duree = button.getAttribute('data-duree');
             var dateReelle = button.getAttribute('data-date');
-            var isPast = button.getAttribute('data-is-past') === 'true';
+            var pointageOuvert = button.getAttribute('data-pointage-ouvert') === 'true';
             var isAnnule = button.getAttribute('data-is-annule') === 'true';
             var raisonAnnulation = button.getAttribute('data-raison-annulation') || '';
 
@@ -937,7 +938,7 @@
             var dateParts = dateReelle.split('-');
             seanceModal.querySelector('#modalDate').textContent = dateParts[2] + '/' + dateParts[1];
 
-            var opts = { isPast: isPast, creneauId: creneauId, dateReelle: dateReelle, heureReelle: heure };
+            var opts = { pointageOuvert: pointageOuvert, creneauId: creneauId, dateReelle: dateReelle, heureReelle: heure };
 
             // Split : prévus vs inscrits classiques
             var prevus = clients.filter(function(c) { return c.prevu; });
